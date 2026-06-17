@@ -3,7 +3,7 @@ services:
   - type: web
     name: orion-diplom-api
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     region: frankfurt
     plan: free
