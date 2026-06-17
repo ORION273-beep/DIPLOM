@@ -28,11 +28,11 @@ services:
 
   - type: web
     name: orion-diplom-web
-    runtime: node
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     region: frankfurt
     plan: free
-    buildCommand: npm ci && BACKEND_URL=https://orion-diplom-api.onrender.com npm run render-build
-    startCommand: npm run render-start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
