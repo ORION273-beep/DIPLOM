@@ -3,7 +3,7 @@ node_modules
 .git
 .env
 .env.*
-!.env.example
+!.env.local
 backend/node_modules
 backend/prisma/dev.db
 backend/prisma/dev.db-journal

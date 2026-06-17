@@ -6,10 +6,9 @@
 
 ```bash
 npm install --prefix backend
-cp .env.example .env
 ```
 
-Обязательно задайте в `.env`:
+Создайте `backend/.env` с переменными:
 
 - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` — длинные случайные строки  
 - `DATABASE_URL="file:./prisma/dev.db"` (как в примере)

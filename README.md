@@ -15,8 +15,8 @@
 ```bash
 npm install
 npm install --prefix backend
-cp backend/.env.example backend/.env
-# Отредактируйте backend/.env — задайте JWT_ACCESS_SECRET и JWT_REFRESH_SECRET
+# .env.local в корне: BACKEND_URL=http://localhost:4000
+# backend/.env: JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, DATABASE_URL=file:./prisma/dev.db
 
 # Первая инициализация БД (миграции + сид из backend/data/db.json)
 npm run db:reset --prefix backend
@@ -45,8 +45,8 @@ npm run dev:all
 
 | Файл | Назначение |
 |------|------------|
-| **`.env.local`** (корень) | `BACKEND_URL` — для rewrites и серверных fetch в Next. См. `.env.example`. |
-| **`backend/.env`** | `DATABASE_URL`, секреты JWT, `COOKIE_SECURE`, порт. См. `backend/.env.example`. |
+| **`.env.local`** (корень) | `BACKEND_URL` — для rewrites и серверных fetch в Next |
+| **`backend/.env`** | `DATABASE_URL`, секреты JWT, `COOKIE_SECURE`, порт |
 
 ## Скрипты
 
