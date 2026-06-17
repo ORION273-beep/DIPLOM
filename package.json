@@ -2,10 +2,15 @@
   "name": "kupikod-clone",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "render-build": "npm run build && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
+    "render-start": "node --max-old-space-size=400 .next/standalone/server.js",
     "lint": "eslint src/app src/components/auth src/components/catalog src/components/commerce src/components/layout src/components/marketing src/lib",
     "test": "vitest run",
     "test:watch": "vitest",
