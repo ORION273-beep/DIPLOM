@@ -146,7 +146,7 @@
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "/home/nikola/VSCode/diplom/kupikod-clone",
+    "outputFileTracingRoot": "/home/runner/work/DIPLOM/DIPLOM",
     "cacheComponents": false,
     "cacheLife": {
       "default": {
@@ -339,7 +339,7 @@
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.ts",
     "turbopack": {
-      "root": "/home/nikola/VSCode/diplom/kupikod-clone"
+      "root": "/home/runner/work/DIPLOM/DIPLOM"
     },
     "reactCompiler": true,
     "serverExternalPackages": [
@@ -357,7 +357,7 @@
       "fallback": []
     }
   },
-  "appDir": "/home/nikola/VSCode/diplom/kupikod-clone",
+  "appDir": "/home/runner/work/DIPLOM/DIPLOM",
   "relativeAppDir": "",
   "files": [
     ".next/routes-manifest.json",
