@@ -3,6 +3,7 @@ set -e
 
 cd /app
 
+echo "[onesec] running prisma migrate..."
 npx prisma migrate deploy
 
 node <<'EOF'
@@ -28,7 +29,8 @@ export BACKEND_HOST=127.0.0.1
 export BACKEND_URL=http://127.0.0.1:4001
 export HOSTNAME=0.0.0.0
 
-node src/server.js &
+echo "[onesec] starting backend on ${BACKEND_HOST}:${BACKEND_PORT}..."
+node --max-old-space-size=128 src/server.js &
 BACKEND_PID=$!
 
 cleanup() {
@@ -36,5 +38,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+sleep 1
+
+echo "[onesec] starting Next.js on PORT=${PORT:-3000}..."
 cd /app/web
-exec node --max-old-space-size=400 server.js
+exec node --max-old-space-size=256 server.js
