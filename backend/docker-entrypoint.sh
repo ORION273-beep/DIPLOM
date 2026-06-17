@@ -23,4 +23,18 @@ const { execSync } = require('child_process');
 })();
 EOF
 
-exec node src/server.js
+export BACKEND_PORT=4001
+export BACKEND_HOST=127.0.0.1
+export BACKEND_URL=http://127.0.0.1:4001
+export HOSTNAME=0.0.0.0
+
+node src/server.js &
+BACKEND_PID=$!
+
+cleanup() {
+  kill "$BACKEND_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+cd /app/web
+exec node --max-old-space-size=400 server.js

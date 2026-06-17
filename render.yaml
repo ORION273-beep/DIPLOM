@@ -4,15 +4,13 @@ services:
     name: orion-diplom-api
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    dockerContext: .
     region: frankfurt
     plan: free
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 4000
       - key: DATABASE_URL
         value: file:/app/prisma/dev.db
       - key: COOKIE_SECURE
@@ -24,20 +22,6 @@ services:
       - key: PAYMENT_WEBHOOK_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://orion-diplom-web.onrender.com
-
-  - type: web
-    name: orion-diplom-web
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    region: frankfurt
-    plan: free
-    healthCheckPath: /api/health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: BACKEND_URL
         value: https://orion-diplom-api.onrender.com
       - key: HOSTNAME
         value: 0.0.0.0
