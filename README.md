@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OneSec
 
-## Getting Started
+Дипломный проект — интернет-магазин игрового доната (клон kupikod.com).  
+Монорепозиторий: **Next.js 16 (frontend)** + **Express + Prisma + SQLite (backend)**.
 
-First, run the development server:
+Браузер обращается к `/api/*` на том же origin; Next.js переписывает запросы на `BACKEND_URL` (CORS не нужен).
+
+## Требования
+
+- Node.js 20+
+- npm
+
+## Быстрый старт
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm install --prefix backend
+cp backend/.env.example backend/.env
+# Отредактируйте backend/.env — задайте JWT_ACCESS_SECRET и JWT_REFRESH_SECRET
+
+# Первая инициализация БД (миграции + сид из backend/data/db.json)
+npm run db:reset --prefix backend
+
+# Frontend + backend одной командой
+npm run dev:all
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- Backend API: [http://localhost:4000](http://localhost:4000)
+- Swagger UI: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Демо-аккаунты
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+После `npm run db:reset --prefix backend` доступны учётные записи из сида:
 
-## Learn More
+| Email | Пароль | Роль |
+|-------|--------|------|
+| `fgf@mail.ru` | `demo123456` | Пользователь |
+| `ffffgdgf@mail.ru` | `admin123456` | Администратор |
+| `fffff@mail.ru` | `admin123456` | Администратор |
 
-To learn more about Next.js, take a look at the following resources:
+Админ-панель: [http://localhost:3000/admin](http://localhost:3000/admin) (требуется вход под admin).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Переменные окружения
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Файл | Назначение |
+|------|------------|
+| **`.env.local`** (корень) | `BACKEND_URL` — для rewrites и серверных fetch в Next. См. `.env.example`. |
+| **`backend/.env`** | `DATABASE_URL`, секреты JWT, `COOKIE_SECURE`, порт. См. `backend/.env.example`. |
 
-## Deploy on Vercel
+## Скрипты
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Команда | Описание |
+|---------|----------|
+| `npm run dev` | Только Next.js |
+| `npm run backend:dev` | Только Express |
+| `npm run dev:all` | Backend + Next параллельно |
+| `npm run db:seed` | Сид БД из `backend/data/db.json` |
+| `npm run db:reset` | Сброс + миграции + сид в `backend/` |
+| `npm test` | Vitest (frontend) |
+| `npm run lint` | ESLint (frontend) |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Структура (кратко)
+
+- `src/app/` — страницы и UI Next.js
+- `src/lib/api/client.ts` — `apiFetch` (браузер → `/api`, RSC → `BACKEND_URL`)
+- `src/lib/auth/store.ts` — Zustand-сессия (access token в памяти)
+- `backend/src/server.js` — REST API, JWT, Prisma
+- `backend/prisma/` — схема, миграции, `dev.db`
+- `docker-compose.yml` — локальный запуск в Docker
+- `render.yaml` — облачный деплой на Render (API + frontend)
+
+## Деплой в облако (Render)
+
+Бесплатно, **без привязки карты**. Холодный старт ~30–60 сек после простоя.
+
+```bash
+chmod +x scripts/deploy-render.sh
+bash scripts/deploy-render.sh
+```
+
+Скрипт закоммитит код, создаст репозиторий на GitHub и выдаст ссылку на Blueprint Render.  
+Нажмите **Apply** в Render — поднимутся `onesec-api` и `onesec-web` из [`render.yaml`](render.yaml).
+
+После деплоя:
+- Сайт: `https://onesec-web.onrender.com`
+- API: `https://onesec-api.onrender.com`
+
+Подробнее по backend: [`backend/README.md`](backend/README.md).  
+Архитектура и диаграммы: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

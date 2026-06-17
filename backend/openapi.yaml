@@ -1,0 +1,333 @@
+openapi: 3.0.3
+info:
+  title: OneSec API
+  version: 1.0.0
+  description: REST API магазина цифровых товаров OneSec (Express + Prisma)
+
+servers:
+  - url: http://localhost:4000/api
+    description: Backend (dev)
+  - url: http://localhost:3000/api
+    description: Через Next.js rewrite
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    Product:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        price: { type: number }
+        oldPrice: { type: number, nullable: true }
+        image: { type: string }
+        category: { type: string }
+        platform: { type: string }
+        inStock: { type: boolean }
+        stock: { type: integer }
+    Order:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        userEmail: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, refunded]
+        totalAmount: { type: number }
+        paymentMethod: { type: string, nullable: true }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId: { type: string }
+              title: { type: string }
+              image: { type: string, nullable: true }
+              quantity: { type: integer }
+              priceAtPurchase: { type: number }
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+
+  /auth/register:
+    post:
+      summary: Регистрация
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+      responses:
+        '201':
+          description: Пользователь создан
+
+  /auth/login:
+    post:
+      summary: Вход
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: accessToken + cookies
+
+  /auth/refresh:
+    post:
+      summary: Обновление access token по refresh cookie
+      responses:
+        '200':
+          description: Новый accessToken
+
+  /auth/me:
+    get:
+      summary: Текущий пользователь
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Профиль
+
+  /auth/forgot-password:
+    post:
+      summary: Восстановление пароля (заглушка)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+      responses:
+        '200':
+          description: Всегда успех
+
+  /products:
+    get:
+      summary: Список товаров с фильтрами и пагинацией
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: discount
+          in: query
+          schema: { type: string, enum: ['1'] }
+        - name: currency
+          in: query
+          schema: { type: string, enum: ['1'] }
+        - name: inStock
+          in: query
+          schema: { type: string, enum: ['1'] }
+      responses:
+        '200':
+          description: products + pagination
+
+  /products/{id}:
+    get:
+      summary: Товар по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: product
+        '404':
+          description: Не найден
+
+  /categories:
+    get:
+      summary: Категории
+      responses:
+        '200':
+          description: categories
+
+  /games:
+    get:
+      summary: Игры
+      responses:
+        '200':
+          description: games
+
+  /orders:
+    get:
+      summary: Заказы текущего пользователя
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: orders + pagination
+    post:
+      summary: Создать заказ
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                paymentMethod: { type: string }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      productId: { type: string }
+                      quantity: { type: integer }
+      responses:
+        '201':
+          description: order
+
+  /favorites:
+    get:
+      summary: Избранное пользователя
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: favorites
+    post:
+      summary: Добавить в избранное
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, title, price, image]
+              properties:
+                productId: { type: string }
+                title: { type: string }
+                price: { type: number }
+                oldPrice: { type: number }
+                image: { type: string }
+      responses:
+        '201':
+          description: favorite
+
+  /favorites/{productId}:
+    delete:
+      summary: Удалить из избранного
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: removed
+
+  /admin/orders:
+    get:
+      summary: Все заказы (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: orders + pagination
+
+  /admin/orders/{id}:
+    patch:
+      summary: Обновить статус заказа
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [pending, processing, completed, failed, refunded]
+      responses:
+        '200':
+          description: order
+
+  /admin/products:
+    get:
+      summary: Товары (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: products
+    post:
+      summary: Создать товар
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: product
+
+  /reviews:
+    get:
+      summary: Отзывы
+      responses:
+        '200':
+          description: reviews
+
+  /faq:
+    get:
+      summary: FAQ
+      responses:
+        '200':
+          description: items

@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  pending
+  processing
+  completed
+  failed
+  refunded
+}
+
+model User {
+  id                  String               @id
+  email               String               @unique
+  password            String
+  role                Role                 @default(USER)
+  balance             Float                @default(0)
+  blocked             Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  orders              Order[]
+  refreshTokens       RefreshToken[]
+  favorites           Favorite[]
+  cartItems           CartItem[]
+  passwordResetTokens PasswordResetToken[]
+  reviews             Review[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  title     String
+  price     Float
+  oldPrice  Float?
+  image     String
+  quantity  Int      @default(1)
+  gameSlug  String?
+  category  String?
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  title     String
+  price     Float
+  oldPrice  Float?
+  image     String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  jti       String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Game {
+  id          String   @id
+  slug        String   @unique
+  name        String
+  cover       String
+  genres      Json // string[]
+  platforms   Json // string[]
+  description String?
+  popular     Boolean  @default(false)
+}
+
+model Product {
+  id          String      @id
+  title       String
+  category    String
+  platform    String
+  price       Float
+  oldPrice    Float?
+  image       String
+  description String?
+  popular     Boolean     @default(false)
+  inStock     Boolean     @default(true)
+  stock       Int         @default(100)
+  gameSlug    String?
+}
+
+model Category {
+  id   String @id
+  name String
+  icon String?
+  type String?
+}
+
+model Order {
+  id             String              @id
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status         OrderStatus         @default(pending)
+  totalAmount    Float
+  paymentMethod  String?
+  idempotencyKey String?             @unique
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @default(now())
+  items          OrderItem[]
+  statusHistory  OrderStatusEntry[]
+}
+
+model OrderItem {
+  id               String  @id @default(cuid())
+  orderId          String
+  order            Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        String?
+  title            String
+  image            String?
+  quantity         Int
+  priceAtPurchase  Float
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  author    String
+  rating    Int
+  text      String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model FaqItem {
+  id       String @id
+  question String
+  answer   String
+  sort     Int    @default(0)
+}
+
+model OrderStatusEntry {
+  id         String       @id @default(cuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status     OrderStatus
+  changedAt  DateTime
+  changedBy  String
+}

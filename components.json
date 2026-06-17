@@ -1,0 +1,10 @@
+{
+  "aliases": {
+    "components": "@/components/",
+    "utils": "@/utils/",
+    "hooks": "@/hooks/",
+    "styles": "@/styles/"
+  },
+  "framework": "next-app",
+  "version": "8"
+}
