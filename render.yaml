@@ -33,6 +33,7 @@ services:
     dockerContext: .
     region: frankfurt
     plan: free
+    healthCheckPath: /
     envVars:
       - key: NODE_ENV
         value: production

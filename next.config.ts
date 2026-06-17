@@ -1,8 +1,14 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const backendUrl = (process.env.BACKEND_URL || "http://localhost:4000").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname),
+  turbopack: {
+    root: path.join(__dirname),
+  },
   reactCompiler: true,
   serverExternalPackages: ["bcryptjs"],
   images: {

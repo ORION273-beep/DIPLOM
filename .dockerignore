@@ -1,6 +1,7 @@
 node_modules
 .next
 .git
+backend/
 .env
 .env.*
 !.env.local
@@ -10,3 +11,6 @@ backend/prisma/dev.db-journal
 *.log
 .cursor
 coverage
+fly.toml
+backend/fly.toml
+scripts/deploy-fly.sh

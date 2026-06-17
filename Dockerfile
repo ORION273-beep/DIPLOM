@@ -2,6 +2,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+ARG BACKEND_URL=https://orion-diplom-api.onrender.com
+ENV BACKEND_URL=$BACKEND_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+
 COPY package*.json ./
 RUN npm ci
 
@@ -15,14 +19,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY package*.json ./
-RUN npm ci --omit=dev
+RUN addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]
