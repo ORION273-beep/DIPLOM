@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - '.render/**'
+      - 'backend/.render/**'
       - 'README.md'
       - 'docs/**'
   workflow_dispatch:
@@ -27,15 +27,16 @@ jobs:
       - run: npm ci
       - run: BACKEND_URL=http://127.0.0.1:4001 npm run render-build
       - run: |
-          rm -rf .render/web
-          mkdir -p .render
-          cp -r .next/standalone .render/web
+          rm -rf backend/.render/web
+          mkdir -p backend/.render
+          cp -r .next/standalone backend/.render/web
 
       - name: Commit artifacts
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .render/web
+          git rm -rf .render 2>/dev/null || true
+          git add backend/.render/web
           if git diff --staged --quiet; then
             echo "No artifact changes."
             exit 0
