@@ -1,7 +1,6 @@
 node_modules
 .next
 .git
-backend/
 .env
 .env.*
 backend/node_modules
