@@ -72,19 +72,21 @@ npm run dev:all
 
 ## Деплой в облако (Render)
 
-Бесплатно, **без привязки карты**. Холодный старт ~30–60 сек после простоя.
+Бесплатно, **без привязки карты**. Первый запрос после простоя ~30–60 сек.
+
+1. Код должен быть на GitHub: [ORION273-beep/DIPLOM](https://github.com/ORION273-beep/DIPLOM)
+2. Откройте Blueprint: https://dashboard.render.com/blueprint/new?repo=https://github.com/ORION273-beep/DIPLOM
+3. Войдите через GitHub → **Apply**
+
+Или в терминале (покажет ссылку):
 
 ```bash
-chmod +x scripts/deploy-render.sh
 bash scripts/deploy-render.sh
 ```
 
-Скрипт закоммитит код, создаст репозиторий на GitHub и выдаст ссылку на Blueprint Render.  
-Нажмите **Apply** в Render — поднимутся `onesec-api` и `onesec-web` из [`render.yaml`](render.yaml).
-
 После деплоя:
-- Сайт: `https://onesec-web.onrender.com`
-- API: `https://onesec-api.onrender.com`
+- Сайт: `https://orion-diplom-web.onrender.com`
+- API: `https://orion-diplom-api.onrender.com`
 
 Подробнее по backend: [`backend/README.md`](backend/README.md).  
 Архитектура и диаграммы: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

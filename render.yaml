@@ -1,7 +1,7 @@
 # Render Blueprint: https://render.com/docs/blueprint-spec
 services:
   - type: web
-    name: onesec-api
+    name: orion-diplom-api
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: ./backend
@@ -24,10 +24,10 @@ services:
       - key: PAYMENT_WEBHOOK_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://onesec-web.onrender.com
+        value: https://orion-diplom-web.onrender.com
 
   - type: web
-    name: onesec-web
+    name: orion-diplom-web
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
@@ -39,4 +39,4 @@ services:
       - key: PORT
         value: 3000
       - key: BACKEND_URL
-        value: https://onesec-api.onrender.com
+        value: https://orion-diplom-api.onrender.com
