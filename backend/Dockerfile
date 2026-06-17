@@ -12,7 +12,7 @@ COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN npx prisma generate && chmod +x docker-entrypoint.sh
 
-COPY .render/web /app/web
+COPY render-bundle/web /app/web
 
 ENV NODE_ENV=production
 ENV BACKEND_PORT=4001

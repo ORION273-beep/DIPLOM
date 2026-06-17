@@ -1,12 +1,6 @@
 name: Update Render Web Artifacts
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - 'backend/.render/**'
-      - 'README.md'
-      - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -27,16 +21,16 @@ jobs:
       - run: npm ci
       - run: BACKEND_URL=http://127.0.0.1:4001 npm run render-build
       - run: |
-          rm -rf backend/.render/web
-          mkdir -p backend/.render
-          cp -r .next/standalone backend/.render/web
+          rm -rf backend/render-bundle/web
+          mkdir -p backend/render-bundle
+          cp -r .next/standalone backend/render-bundle/web
 
       - name: Commit artifacts
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git rm -rf .render 2>/dev/null || true
-          git add backend/.render/web
+          git rm -rf backend/.render .render 2>/dev/null || true
+          git add backend/render-bundle/web
           if git diff --staged --quiet; then
             echo "No artifact changes."
             exit 0
