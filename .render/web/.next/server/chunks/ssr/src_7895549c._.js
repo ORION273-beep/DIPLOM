@@ -1,0 +1,3 @@
+module.exports=[65567,a=>{"use strict";var b=a.i(7997);function c({label:a="Загрузка..."}){return(0,b.jsx)("div",{className:"container mx-auto flex min-h-[40vh] items-center justify-center px-4 py-16",children:(0,b.jsxs)("div",{className:"text-center",children:[(0,b.jsx)("div",{className:"mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-brand border-t-transparent"}),(0,b.jsx)("p",{className:"text-tertiary",children:a})]})})}a.s(["PageLoader",()=>c])},2747,a=>{"use strict";var b=a.i(7997),c=a.i(65567);function d(){return(0,b.jsx)(c.PageLoader,{})}a.s(["default",()=>d])}];
+
+//# sourceMappingURL=src_7895549c._.js.map
