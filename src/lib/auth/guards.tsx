@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth/store';
-import { buildLoginUrl } from '@/lib/auth/redirect';
+import { buildLoginUrl, type LoginReason } from '@/lib/auth/redirect';
+import { useReturnPath } from '@/lib/auth/returnPath';
 
-function useReturnPath(): string {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const query = searchParams.toString();
-  return query ? `${pathname}?${query}` : pathname;
-}
-
-export function RequireAuth({ children }: { children: React.ReactNode }) {
+export function RequireAuth({
+  children,
+  loginReason,
+}: {
+  children: React.ReactNode;
+  loginReason?: LoginReason;
+}) {
   const router = useRouter();
   const returnPath = useReturnPath();
   const user = useAuthStore((s) => s.user);
@@ -21,9 +21,9 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authReady) return;
     if (!user) {
-      router.replace(buildLoginUrl(returnPath));
+      router.replace(buildLoginUrl(returnPath, loginReason));
     }
-  }, [authReady, user, router, returnPath]);
+  }, [authReady, user, router, returnPath, loginReason]);
 
   if (!authReady) {
     return (

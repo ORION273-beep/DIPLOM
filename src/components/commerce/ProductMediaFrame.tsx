@@ -12,6 +12,10 @@ export function isPubgMobileProduct(product: ProductMediaContext): boolean {
   return slug === 'pubg-mobile' || Boolean(product.image?.includes('pubg-uc'));
 }
 
+export function isLocalProductArt(image?: string): boolean {
+  return Boolean(image?.startsWith('/products/'));
+}
+
 export function PubgUcBackdrop({ className }: { className?: string }) {
   return (
     <div className={cx('absolute inset-0 overflow-hidden', className)} aria-hidden>

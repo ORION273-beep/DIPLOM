@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { HeaderCentered } from '@/components/marketing/header-section/header-centered';
+import { GamesHubHeader } from '@/components/marketing/header-section/games-hub-header';
 import { serverApiUrl } from '@/lib/api/client';
 
 interface Game {
@@ -48,12 +48,19 @@ export default async function GamesPage() {
     );
   }
 
+  const decorCovers = games
+    .filter((game) => game.popular)
+    .concat(games.filter((game) => !game.popular))
+    .slice(0, 4)
+    .map((game) => ({ src: game.cover, alt: game.name }));
+
   return (
     <section>
-      <HeaderCentered
+      <GamesHubHeader
         eyebrow="OneSec Games"
         title="Популярные игры"
         description={`${games.length} игр с цифровыми товарами и быстрой доставкой`}
+        decorCovers={decorCovers}
       />
 
       <div className="container mx-auto grid grid-cols-1 gap-5 px-4 pb-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">

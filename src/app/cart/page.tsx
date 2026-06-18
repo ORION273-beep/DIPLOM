@@ -7,11 +7,20 @@ import { Button } from '@/components/base/buttons/button';
 import { cx } from '@/utils/cx';
 import { OneSecEmptyState } from '@/components/application/empty-state/OneSecEmptyState';
 import { HeaderCentered } from '@/components/marketing/header-section/header-centered';
+import { RequireAuth } from '@/lib/auth/guards';
 import { useAuthGate } from '@/lib/auth/useAuthGate';
 import { useCartStore } from '@/lib/cartStore';
 import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
+  return (
+    <RequireAuth loginReason="cart">
+      <CartPageContent />
+    </RequireAuth>
+  );
+}
+
+function CartPageContent() {
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeFromCart = useCartStore((s) => s.removeFromCart);
@@ -22,7 +31,7 @@ export default function CartPage() {
   const total = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
 
   const handleCheckout = async () => {
-    if (!(await ensureAuth('/checkout'))) return;
+    if (!(await ensureAuth('/checkout', 'cart'))) return;
     if (items.length === 0) return;
     setSubmitting(true);
     router.push('/checkout');

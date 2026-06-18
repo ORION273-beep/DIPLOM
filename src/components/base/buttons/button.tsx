@@ -10,7 +10,9 @@ import { isReactComponent } from "@/utils/is-react-component";
 export const styles = sortCx({
     common: {
         root: [
-            "group relative inline-flex h-max cursor-pointer items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear before:absolute focus-visible:outline-2 focus-visible:outline-offset-2",
+            "group relative inline-flex h-max transform-gpu cursor-pointer items-center justify-center whitespace-nowrap outline-brand transition-[transform,background-color,color,box-shadow,opacity] duration-150 ease-out before:absolute focus-visible:outline-2 focus-visible:outline-offset-2",
+            "enabled:active:scale-[0.96] enabled:data-[pressed]:scale-[0.96] active:scale-[0.96] data-[pressed]:scale-[0.96]",
+            "disabled:active:scale-100 data-[disabled]:scale-100 data-[disabled]:active:scale-100",
             // When button is used within `InputGroup`
             "in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none",
             // Disabled styles

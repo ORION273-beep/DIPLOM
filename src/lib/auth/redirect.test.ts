@@ -1,20 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { buildLoginUrl, getPostLoginPath, sanitizeReturnPath } from './redirect';
+import { buildLoginUrl, parseLoginReason, sanitizeReturnPath } from '@/lib/auth/redirect';
 
 describe('auth redirect', () => {
-  it('defaults to home when next is missing', () => {
-    expect(getPostLoginPath(null)).toBe('/');
-    expect(buildLoginUrl(null)).toBe('/login');
+  it('buildLoginUrl without params returns /login', () => {
+    expect(buildLoginUrl()).toBe('/login');
   });
 
-  it('returns to protected page when next is set', () => {
-    expect(getPostLoginPath('/checkout')).toBe('/checkout');
-    expect(buildLoginUrl('/checkout')).toBe('/login?next=%2Fcheckout');
+  it('buildLoginUrl with return path adds next', () => {
+    expect(buildLoginUrl('/cart')).toBe('/login?next=%2Fcart');
   });
 
-  it('rejects external and auth paths', () => {
-    expect(sanitizeReturnPath('//evil.com')).toBe('/');
-    expect(sanitizeReturnPath('/login')).toBe('/');
-    expect(sanitizeReturnPath('/register')).toBe('/');
+  it('buildLoginUrl with reason only adds reason', () => {
+    expect(buildLoginUrl(null, 'cart')).toBe('/login?reason=cart');
+  });
+
+  it('buildLoginUrl with return path and reason', () => {
+    expect(buildLoginUrl('/catalog/subscriptions', 'favorites')).toBe(
+      '/login?next=%2Fcatalog%2Fsubscriptions&reason=favorites',
+    );
+  });
+
+  it('sanitizeReturnPath rejects external URLs', () => {
+    expect(sanitizeReturnPath('https://evil.com')).toBe('/');
+  });
+
+  it('parseLoginReason validates reason', () => {
+    expect(parseLoginReason('cart')).toBe('cart');
+    expect(parseLoginReason('favorites')).toBe('favorites');
+    expect(parseLoginReason('invalid')).toBeNull();
+    expect(parseLoginReason(null)).toBeNull();
   });
 });

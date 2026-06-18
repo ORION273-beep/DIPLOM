@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { Heart, ShoppingCart01 } from '@untitledui/icons';
 import { Badge } from '@/components/base/badges/badges';
 import { Button } from '@/components/base/buttons/button';
-import { isPubgMobileProduct, ProductMediaFrame } from '@/components/commerce/ProductMediaFrame';
+import { isLocalProductArt, isPubgMobileProduct, ProductMediaFrame } from '@/components/commerce/ProductMediaFrame';
+import { useAuthGate } from '@/lib/auth/useAuthGate';
 import { useCartStore } from '@/lib/cartStore';
 import { useFavoritesStore } from '@/lib/favoritesStore';
 import { cx } from '@/utils/cx';
@@ -23,13 +24,15 @@ export function ProductCard({ product }: { product: Product }) {
   const addToCart = useCartStore((s) => s.addToCart);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const isFavorite = useFavoritesStore((s) => s.items.some((item) => item.id === product.id));
+  const { ensureAuth } = useAuthGate();
 
   const discount = product.oldPrice
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
     : 0;
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
+    if (!(await ensureAuth(undefined, 'cart'))) return;
     addToCart({
       id: product.id,
       title: product.title,
@@ -38,12 +41,14 @@ export function ProductCard({ product }: { product: Product }) {
     });
   };
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
+    if (!(await ensureAuth(undefined, 'favorites'))) return;
     toggleFavorite(product);
   };
 
   const isPubg = isPubgMobileProduct(product);
+  const isLocalArt = isLocalProductArt(product.image);
 
   return (
     <div className="group overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs transition-all hover:border-brand hover:shadow-md">
@@ -55,7 +60,9 @@ export function ProductCard({ product }: { product: Product }) {
             className={cx(
               isPubg
                 ? 'mx-auto size-full max-h-none max-w-none scale-[1.18] object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]'
-                : 'h-full w-full object-cover transition-transform duration-300 group-hover:scale-105',
+                : isLocalArt
+                  ? 'h-full w-full bg-black object-contain transition-transform duration-300 group-hover:scale-105'
+                  : 'h-full w-full object-cover transition-transform duration-300 group-hover:scale-105',
             )}
           />
         </Link>
@@ -100,6 +107,7 @@ export function ProductCard({ product }: { product: Product }) {
             size="sm"
             onClick={handleAddToCart}
             aria-label="В корзину"
+            className="btn-cart-press"
           >
             <ShoppingCart01 className="size-4" />
           </Button>

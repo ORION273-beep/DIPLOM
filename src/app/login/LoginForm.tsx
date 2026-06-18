@@ -11,7 +11,7 @@ import { useAuthStore } from '@/lib/auth/store';
 import { syncFavoritesFromServer } from '@/lib/favoritesSync';
 import { mergeLocalCartToServer } from '@/lib/cartSync';
 import { parseApiErrorBody } from '@/lib/api/errors';
-import { getPostLoginPath } from '@/lib/auth/redirect';
+import { getPostLoginPath, LOGIN_REASON_MESSAGES, parseLoginReason } from '@/lib/auth/redirect';
 import { getEmailError, getLoginPasswordError } from '@/lib/auth/validation';
 
 type FieldErrors = {
@@ -28,6 +28,8 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
+  const loginReason = parseLoginReason(searchParams.get('reason'));
+  const reasonMessage = loginReason ? LOGIN_REASON_MESSAGES[loginReason] : null;
   const postLoginPath = getPostLoginPath(nextParam);
   const registerHref = nextParam ? `/register?next=${encodeURIComponent(postLoginPath)}` : '/register';
   const user = useAuthStore((s) => s.user);
@@ -159,6 +161,11 @@ export default function LoginForm() {
       }
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+        {reasonMessage && (
+          <div className="rounded-lg border border-brand-secondary/30 bg-brand-solid/10 px-4 py-3 text-sm text-brand-secondary">
+            {reasonMessage}
+          </div>
+        )}
         {error && (
           <div className="rounded-lg border border-error-secondary bg-error-primary px-4 py-3 text-sm text-error-primary">
             {error}

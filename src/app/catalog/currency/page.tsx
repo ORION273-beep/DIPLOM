@@ -1,7 +1,7 @@
 import { ProductCard } from '@/components/commerce/ProductCard';
 import { SectionCard, SectionCardContent, SectionCardDescription, SectionCardHeader, SectionCardTitle } from '@/components/marketing/SectionCard';
 import { Button } from '@/components/base/buttons/button';
-import { HeaderCentered } from '@/components/marketing/header-section/header-centered';
+import { CurrencyHubHeader } from '@/components/marketing/header-section/currency-hub-header';
 import { fetchProducts, type Product } from '@/lib/api/products';
 
 const gameLabels: Record<string, string> = {
@@ -31,7 +31,7 @@ export default async function CurrencyPage() {
 
   return (
     <section>
-      <HeaderCentered
+      <CurrencyHubHeader
         eyebrow="OneSec Currency"
         title="Игровая валюта"
         description="Пополнение внутриигровой валюты для популярных игр. Поддерживаются актуальные пакеты и быстрый выпуск заказов."

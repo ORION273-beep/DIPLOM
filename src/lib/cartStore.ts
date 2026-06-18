@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { apiFetch } from '@/lib/api/client';
+import { isAuthenticated } from '@/lib/auth/session';
 import { useAuthStore } from '@/lib/auth/store';
 
 export type Product = {
@@ -60,6 +61,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       addToCart: (product) => {
+        if (!isAuthenticated()) return;
         const items = get().items;
         const existing = items.find((i) => i.id === product.id);
         let next: CartItem[];
@@ -77,6 +79,7 @@ export const useCartStore = create<CartState>()(
         }
       },
       addManyToCart: (products) => {
+        if (!isAuthenticated()) return;
         const next = [...get().items];
         for (const product of products) {
           const existing = next.find((i) => i.id === product.id);

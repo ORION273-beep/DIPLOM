@@ -1,7 +1,7 @@
 import { ProductCard } from '@/components/commerce/ProductCard';
 import { SectionCard, SectionCardContent, SectionCardDescription, SectionCardHeader, SectionCardTitle } from '@/components/marketing/SectionCard';
 import { Button } from '@/components/base/buttons/button';
-import { HeaderCentered } from '@/components/marketing/header-section/header-centered';
+import { SubscriptionsHubHeader } from '@/components/marketing/header-section/subscriptions-hub-header';
 import { fetchProducts } from '@/lib/api/products';
 
 export default async function SubscriptionsPage() {
@@ -9,7 +9,7 @@ export default async function SubscriptionsPage() {
 
   return (
     <section>
-      <HeaderCentered
+      <SubscriptionsHubHeader
         eyebrow="OneSec Subscription Hub"
         title="Подписки"
         description="Цифровые подписки для популярных сервисов с быстрой выдачей и прозрачной ценой."

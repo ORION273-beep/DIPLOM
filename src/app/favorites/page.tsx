@@ -5,9 +5,18 @@ import { Button } from '@/components/base/buttons/button';
 import { OneSecEmptyState } from '@/components/application/empty-state/OneSecEmptyState';
 import { HeaderCentered } from '@/components/marketing/header-section/header-centered';
 import { ProductCard } from '@/components/commerce/ProductCard';
+import { RequireAuth } from '@/lib/auth/guards';
 import { useFavoritesStore } from '@/lib/favoritesStore';
 
 export default function FavoritesPage() {
+  return (
+    <RequireAuth loginReason="favorites">
+      <FavoritesPageContent />
+    </RequireAuth>
+  );
+}
+
+function FavoritesPageContent() {
   const items = useFavoritesStore((s) => s.items);
   const clearFavorites = useFavoritesStore((s) => s.clearFavorites);
 

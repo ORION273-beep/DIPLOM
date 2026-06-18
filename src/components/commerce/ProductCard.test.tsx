@@ -18,6 +18,15 @@ vi.mock('@/lib/favoritesStore', () => ({
     selector({ toggleFavorite: vi.fn(), items: [] }),
 }));
 
+vi.mock('@/lib/auth/useAuthGate', () => ({
+  useAuthGate: () => ({
+    ensureAuth: vi.fn().mockResolvedValue(true),
+    returnPath: '/',
+    user: null,
+    authReady: true,
+  }),
+}));
+
 describe('ProductCard', () => {
   it('renders product title and price', () => {
     render(

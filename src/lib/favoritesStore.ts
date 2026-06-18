@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { apiFetch } from '@/lib/api/client';
+import { isAuthenticated } from '@/lib/auth/session';
 import { useAuthStore } from '@/lib/auth/store';
 
 export type FavoriteProduct = {
@@ -40,6 +41,7 @@ export const useFavoritesStore = create<FavoritesState>()(
       items: [],
       isFavorite: (id) => get().items.some((item) => item.id === id),
       toggleFavorite: (product) => {
+        if (!isAuthenticated()) return;
         const exists = get().items.some((item) => item.id === product.id);
         if (exists) {
           set({ items: get().items.filter((item) => item.id !== product.id) });

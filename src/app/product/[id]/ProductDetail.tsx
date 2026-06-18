@@ -13,11 +13,12 @@ import {
   ModalOverlay,
 } from '@/components/application/modals/modal';
 import { Button } from '@/components/base/buttons/button';
+import { useAuthGate } from '@/lib/auth/useAuthGate';
 import { useCartStore } from '@/lib/cartStore';
 import { useFavoritesStore } from '@/lib/favoritesStore';
 import { toast } from 'sonner';
 import { PaymentInDevelopmentModal } from '@/components/commerce/PaymentInDevelopmentModal';
-import { isPubgMobileProduct, PubgUcBackdrop } from '@/components/commerce/ProductMediaFrame';
+import { isLocalProductArt, isPubgMobileProduct, PubgUcBackdrop } from '@/components/commerce/ProductMediaFrame';
 
 export type ProductDetailData = {
   id: string | number;
@@ -43,6 +44,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const favoriteItems = useFavoritesStore((s) => s.items);
   const router = useRouter();
+  const { ensureAuth } = useAuthGate();
   const [showPaymentDev, setShowPaymentDev] = useState(false);
 
   const discount = product.oldPrice
@@ -52,8 +54,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const isInStock = product.inStock !== false;
   const isFavorite = favoriteItems.some((item) => item.id === product.id);
   const isPubg = isPubgMobileProduct({ category: product.category, image: product.image });
+  const isLocalArt = isLocalProductArt(product.image);
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
+    if (!(await ensureAuth(undefined, 'cart'))) return;
     clearCart();
     addToCart({
       id: product.id,
@@ -70,7 +74,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
     setShowPaymentDev(true);
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
+    if (!(await ensureAuth(undefined, 'cart'))) return;
     addToCart({
       id: product.id,
       title: product.title,
@@ -90,7 +95,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
     });
   };
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = async () => {
+    if (!(await ensureAuth(undefined, 'favorites'))) return;
     toggleFavorite({
       id: product.id,
       title: product.title,
@@ -112,7 +118,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
         <div className="relative overflow-hidden rounded-2xl border border-secondary">
-          <div className={cn('relative aspect-square', !isPubg && 'bg-secondary')}>
+          <div className={cn('relative aspect-square', !isPubg && !isLocalArt && 'bg-secondary', isLocalArt && 'bg-black')}>
             {isPubg && <PubgUcBackdrop className="rounded-2xl" />}
             <Image
               src={product.image || '/placeholder.svg'}
@@ -121,7 +127,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
               className={cn(
                 isPubg
                   ? 'z-10 object-contain p-4 scale-[1.12] drop-shadow-[0_16px_40px_rgba(0,0,0,0.4)]'
-                  : 'object-cover',
+                  : isLocalArt
+                    ? 'object-contain p-4'
+                    : 'object-cover',
               )}
               sizes="(max-width: 1024px) 100vw, 50vw"
               priority
@@ -235,7 +243,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
               <Button
                 color="secondary"
                 size="lg"
-                className="w-full"
+                className="btn-cart-press w-full"
                 isDisabled={!isInStock}
                 iconLeading={ShoppingCart01}
                 onClick={handleAddToCart}
