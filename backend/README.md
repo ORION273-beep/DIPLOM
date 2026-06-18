@@ -104,16 +104,6 @@ npm run dev
 | GET/PATCH | `/api/admin/users` | Пользователи: роль, баланс, блокировка (admin) |
 | GET | `/api/admin/stats` | Дашборд: выручка, заказы, топ товаров (admin) |
 
-## Docker
-
-Из корня репозитория:
-
-```bash
-docker compose up --build
-```
-
-Frontend: http://localhost:3000, backend: http://localhost:4000
-
 ## Тесты
 
 ```bash

@@ -67,26 +67,16 @@ npm run dev:all
 - `src/lib/auth/store.ts` — Zustand-сессия (access token в памяти)
 - `backend/src/server.js` — REST API, JWT, Prisma
 - `backend/prisma/` — схема, миграции, `dev.db`
-- `docker-compose.yml` — локальный запуск в Docker
-- `render.yaml` — облачный деплой на Render (API + frontend)
-
-## Деплой в облако (Render)
-
-Бесплатно, **без привязки карты**. Первый запрос после простоя ~30–60 сек.
-
-1. Код должен быть на GitHub: [ORION273-beep/DIPLOM](https://github.com/ORION273-beep/DIPLOM)
-2. Откройте Blueprint: https://dashboard.render.com/blueprint/new?repo=https://github.com/ORION273-beep/DIPLOM
-3. Войдите через GitHub → **Apply**
-
-Или в терминале (покажет ссылку):
-
-```bash
-bash scripts/deploy-render.sh
-```
-
-После деплоя:
-- Сайт: `https://orion-diplom-web.onrender.com`
-- API: `https://orion-diplom-api.onrender.com`
 
 Подробнее по backend: [`backend/README.md`](backend/README.md).  
 Архитектура и диаграммы: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Деплой на сервер (Docker)
+
+```bash
+cp .env.example .env   # заполните JWT-секреты
+docker compose up -d --build
+```
+
+Сайт: `http://<IP-сервера>` (порт 80 через nginx).  
+Полная инструкция с HTTPS и Let's Encrypt: [`docs/DEPLOY.md`](docs/DEPLOY.md).

@@ -1,19 +1,18 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { fileURLToPath } from "url";
 
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const backendUrl = (process.env.BACKEND_URL || "http://localhost:4000").replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  outputFileTracingRoot: path.join(__dirname),
+  // Fix wrong workspace root when another package-lock.json exists higher in the tree
+  // (e.g. ~/package-lock.json) — prevents Turbopack panics on page compile.
+  outputFileTracingRoot: projectRoot,
   turbopack: {
-    root: path.join(__dirname),
-  },
-  experimental: {
-    preloadEntriesOnStart: false,
+    root: projectRoot,
   },
   reactCompiler: true,
-  serverExternalPackages: ["bcryptjs"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "assets.change.org" },

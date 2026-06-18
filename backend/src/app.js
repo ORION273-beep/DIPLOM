@@ -80,7 +80,7 @@ function createApp() {
   app.get('/api/health', async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
-      return res.json({ ok: true, status: 'ok', db: 'connected', stack: 'fullstack' });
+      return res.json({ ok: true, status: 'ok', db: 'connected' });
     } catch {
       return res.status(503).json({ ok: false, status: 'degraded', db: 'disconnected' });
     }

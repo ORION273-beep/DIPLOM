@@ -1,3 +1,0 @@
-module.exports=[50083,a=>{"use strict";var b=a.i(87924),c=a.i(72131),d=a.i(52507);function e({error:a,reset:e}){return(0,c.useEffect)(()=>{console.error("Catalog error:",a)},[a]),(0,b.jsxs)("div",{className:"container mx-auto flex min-h-[50vh] flex-col items-center justify-center px-4 text-center",children:[(0,b.jsx)("h2",{className:"text-xl font-semibold text-primary",children:"Ошибка загрузки каталога"}),(0,b.jsx)("p",{className:"mt-2 text-secondary",children:"Попробуйте обновить страницу"}),(0,b.jsx)(d.Button,{color:"primary",className:"mt-6",onClick:e,children:"Повторить"})]})}a.s(["default",()=>e])}];
-
-//# sourceMappingURL=src_app_catalog_error_tsx_f709f0c7._.js.map
