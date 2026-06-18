@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Heart, ShoppingCart01 } from '@untitledui/icons';
 import { Badge } from '@/components/base/badges/badges';
 import { Button } from '@/components/base/buttons/button';
+import { isPubgMobileProduct, ProductMediaFrame } from '@/components/commerce/ProductMediaFrame';
 import { useCartStore } from '@/lib/cartStore';
 import { useFavoritesStore } from '@/lib/favoritesStore';
 import { cx } from '@/utils/cx';
@@ -14,6 +15,8 @@ type Product = {
   price: number;
   oldPrice?: number | null;
   image: string;
+  gameSlug?: string | null;
+  category?: string | null;
 };
 
 export function ProductCard({ product }: { product: Product }) {
@@ -40,19 +43,25 @@ export function ProductCard({ product }: { product: Product }) {
     toggleFavorite(product);
   };
 
+  const isPubg = isPubgMobileProduct(product);
+
   return (
     <div className="group overflow-hidden rounded-xl border border-secondary bg-primary shadow-xs transition-all hover:border-brand hover:shadow-md">
-      <div className="relative aspect-4/3 overflow-hidden">
-        <Link href={`/product/${product.id}`}>
+      <ProductMediaFrame product={product} className="bg-secondary">
+        <Link href={`/product/${product.id}`} className="block h-full w-full">
           <img
             src={product.image || '/placeholder.svg'}
             alt={product.title}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className={cx(
+              isPubg
+                ? 'mx-auto size-full max-h-none max-w-none scale-[1.18] object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.35)]'
+                : 'h-full w-full object-cover transition-transform duration-300 group-hover:scale-105',
+            )}
           />
         </Link>
 
         {discount > 0 && (
-          <Badge color="error" size="sm" className="absolute left-3 top-3">
+          <Badge color="error" size="sm" className="absolute left-3 top-3 z-20">
             -{discount}%
           </Badge>
         )}
@@ -60,13 +69,13 @@ export function ProductCard({ product }: { product: Product }) {
         <Button
           color="tertiary"
           size="sm"
-          className="absolute right-3 top-3 bg-primary/80 backdrop-blur-sm"
+          className="absolute right-3 top-3 z-20 bg-primary/80 backdrop-blur-sm"
           onClick={handleToggleFavorite}
           aria-label={isFavorite ? 'Убрать из избранного' : 'В избранное'}
         >
           <Heart className={cx('size-4', isFavorite && 'fill-current text-error-primary')} />
         </Button>
-      </div>
+      </ProductMediaFrame>
 
       <div className="flex flex-col gap-3 p-4">
         <Link href={`/product/${product.id}`}>

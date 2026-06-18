@@ -115,6 +115,7 @@ function HeroVisualPanel({
             src={imageSrc}
             alt={imageAlt ?? ''}
             fill
+            quality={95}
             className="object-cover opacity-35"
             sizes="(max-width: 1024px) 100vw, 50vw"
             priority
@@ -136,9 +137,12 @@ function HeroVisualPanel({
             <Image
               src={cardA.src}
               alt={cardA.alt}
-              width={140}
-              height={196}
-              className="aspect-[3/4] w-full object-cover"
+              width={400}
+              height={560}
+              quality={95}
+              priority
+              sizes="(max-width: 768px) 140px, 280px"
+              className="aspect-3/4 w-full object-cover"
             />
           </div>
         </div>
@@ -150,9 +154,12 @@ function HeroVisualPanel({
             <Image
               src={cardB.src}
               alt={cardB.alt}
-              width={140}
-              height={196}
-              className="aspect-[3/4] w-full object-cover"
+              width={400}
+              height={560}
+              quality={95}
+              priority
+              sizes="(max-width: 768px) 140px, 280px"
+              className="aspect-3/4 w-full object-cover"
             />
           </div>
         </div>

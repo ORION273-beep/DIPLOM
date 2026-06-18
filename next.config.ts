@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   images: {
+    qualities: [75, 90, 95],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384, 512, 640],
     remotePatterns: [
       { protocol: "https", hostname: "assets.change.org" },
       { protocol: "https", hostname: "upload-os-bbs.hoyolab.com" },

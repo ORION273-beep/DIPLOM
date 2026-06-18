@@ -17,6 +17,7 @@ import { useCartStore } from '@/lib/cartStore';
 import { useFavoritesStore } from '@/lib/favoritesStore';
 import { toast } from 'sonner';
 import { PaymentInDevelopmentModal } from '@/components/commerce/PaymentInDevelopmentModal';
+import { isPubgMobileProduct, PubgUcBackdrop } from '@/components/commerce/ProductMediaFrame';
 
 export type ProductDetailData = {
   id: string | number;
@@ -50,6 +51,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
   const isInStock = product.inStock !== false;
   const isFavorite = favoriteItems.some((item) => item.id === product.id);
+  const isPubg = isPubgMobileProduct({ category: product.category, image: product.image });
 
   const handleBuyNow = () => {
     clearCart();
@@ -109,25 +111,30 @@ export function ProductDetail({ product }: ProductDetailProps) {
       </Link>
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-        <div className="relative overflow-hidden rounded-2xl bg-secondary">
-          <div className="aspect-square relative">
+        <div className="relative overflow-hidden rounded-2xl border border-secondary">
+          <div className={cn('relative aspect-square', !isPubg && 'bg-secondary')}>
+            {isPubg && <PubgUcBackdrop className="rounded-2xl" />}
             <Image
               src={product.image || '/placeholder.svg'}
               alt={product.title}
               fill
-              className="object-cover"
+              className={cn(
+                isPubg
+                  ? 'z-10 object-contain p-4 scale-[1.12] drop-shadow-[0_16px_40px_rgba(0,0,0,0.4)]'
+                  : 'object-cover',
+              )}
               sizes="(max-width: 1024px) 100vw, 50vw"
               priority
             />
 
             {discount > 0 && (
-              <div className="absolute left-4 top-4 rounded-full bg-error-solid px-3 py-1.5 text-sm font-bold text-fg-white shadow-lg">
+              <div className="absolute left-4 top-4 z-20 rounded-full bg-error-solid px-3 py-1.5 text-sm font-bold text-fg-white shadow-lg">
                 -{discount}%
               </div>
             )}
 
             {product.popular && (
-              <div className="absolute right-4 top-4 rounded-full bg-orange-600 px-3 py-1.5 text-sm font-bold text-fg-white shadow-lg">
+              <div className="absolute right-4 top-4 z-20 rounded-full bg-orange-600 px-3 py-1.5 text-sm font-bold text-fg-white shadow-lg">
                 Хит
               </div>
             )}

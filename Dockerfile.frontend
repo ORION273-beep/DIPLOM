@@ -34,6 +34,9 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts ./
 
+# next.config.ts requires TypeScript at runtime (not included after npm prune)
+RUN npm install --omit=dev typescript
+
 EXPOSE 3000
 
 CMD ["npm", "start", "--", "-H", "0.0.0.0", "-p", "3000"]

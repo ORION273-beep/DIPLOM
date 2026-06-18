@@ -1,6 +1,6 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { ProductCard } from '@/components/commerce/ProductCard';
+import { PopularGameCard } from '@/components/catalog/PopularGameCard';
 import { HeroSplitImage02 } from '@/components/marketing/header-section/hero-split-image-02';
 import { HeaderCentered } from '@/components/marketing/header-section/header-centered';
 import { serverApiUrl } from '@/lib/api/client';
@@ -19,6 +19,7 @@ type Game = {
   slug: string;
   name: string;
   cover: string;
+  genres?: string[];
   popular?: boolean;
 };
 
@@ -103,37 +104,36 @@ export default async function HomePage() {
         )}
       </div>
 
-      <HeaderCentered
-        eyebrow="Игры"
-        title="Популярные игры"
-        description="Выберите игру и пополните баланс за пару кликов"
-        className="py-12 md:py-16"
-      />
-      <div className="container mx-auto px-4 pb-12">
-        {popularGames.length === 0 ? (
-          <p className="text-center text-quaternary">Игры скоро появятся</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-            {popularGames.map((game) => (
-              <Link key={game.id} href={`/games/${game.slug}`} className="group cursor-pointer">
-                <div className="relative overflow-hidden rounded-lg">
-                  <Image
-                    src={game.cover}
-                    alt={game.name}
-                    width={200}
-                    height={280}
-                    className="aspect-[3/4] w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                  <p className="absolute bottom-2 left-2 right-2 text-sm font-semibold text-fg-white opacity-0 transition-opacity group-hover:opacity-100">
-                    {game.name}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+      <section className="border-t border-secondary bg-secondary_alt">
+        <HeaderCentered
+          eyebrow="Игры"
+          title="Популярные игры"
+          description="Выберите игру и пополните баланс за пару кликов"
+          className="pb-8 pt-12 md:pb-10 md:pt-16"
+        />
+        <div className="container mx-auto px-4 pb-12 md:pb-16">
+          {popularGames.length === 0 ? (
+            <p className="text-center text-quaternary">Игры скоро появятся</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+                {popularGames.map((game, index) => (
+                  <PopularGameCard key={game.id} game={game} priority={index < 3} />
+                ))}
+              </div>
+              <div className="mt-8 flex justify-center md:mt-10">
+                <Link
+                  href="/games"
+                  className="inline-flex items-center gap-2 rounded-xl border border-secondary bg-primary px-5 py-2.5 text-sm font-semibold text-primary shadow-xs transition-all hover:border-brand/50 hover:bg-primary_hover"
+                >
+                  Все игры
+                  <span aria-hidden className="text-tertiary">→</span>
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
