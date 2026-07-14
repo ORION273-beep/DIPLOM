@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { randomUUID } = require('crypto');
 const { z } = require('zod');
-const { prisma } = require('../prisma');
+const { User, RefreshToken, PasswordResetToken, toPlain } = require('../db/models');
 const { sendError, sendSuccess } = require('../utils/errors');
 const { sendPasswordResetEmail } = require('../utils/email');
 const {
@@ -39,24 +39,22 @@ async function handleRegister(req, res) {
     if (!isValidEmail(email)) {
       return sendError(res, 400, 'VALIDATION', 'Некорректный формат email');
     }
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await User.findOne({ email }).lean();
     if (existing) {
       return sendError(res, 409, 'CONFLICT', 'Пользователь с таким email уже существует');
     }
-    const users = await prisma.user.findMany({ select: { id: true } });
+    const users = await User.find({}, { _id: 1 }).lean();
     const numericIds = users
-      .map((u) => u.id)
+      .map((u) => String(u._id))
       .filter((id) => /^\d+$/.test(id))
       .map((id) => Number(id));
     const nextId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
     const hashedPassword = await bcrypt.hash(password, 10);
-    await prisma.user.create({
-      data: {
-        id: nextId,
-        email,
-        password: hashedPassword,
-        role: 'USER',
-      },
+    await User.create({
+      _id: nextId,
+      email,
+      password: hashedPassword,
+      role: 'USER',
     });
     return sendSuccess(res, 201, { message: 'Пользователь успешно зарегистрирован' });
   } catch (error) {
@@ -81,7 +79,7 @@ router.post('/login', async (req, res) => {
     }
     const email = parsed.data.email.trim().toLowerCase();
     const password = parsed.data.password;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = toPlain(await User.findOne({ email }).lean());
     if (!user) {
       return sendError(res, 401, 'INVALID_CREDENTIALS', 'Неверный email или пароль');
     }
@@ -126,12 +124,12 @@ router.post('/refresh', async (req, res) => {
     if (payload.type !== 'refresh' || !payload.jti || !payload.sub) {
       return sendError(res, 401, 'INVALID_REFRESH', 'Неверный refresh');
     }
-    const row = await prisma.refreshToken.findUnique({ where: { jti: payload.jti } });
-    if (!row || row.expiresAt < new Date()) {
+    const row = toPlain(await RefreshToken.findOne({ jti: payload.jti }).lean());
+    if (!row || new Date(row.expiresAt) < new Date()) {
       clearAuthCookies(res);
       return sendError(res, 401, 'INVALID_REFRESH', 'Сессия истекла');
     }
-    const user = await prisma.user.findUnique({ where: { id: String(payload.sub) } });
+    const user = toPlain(await User.findById(String(payload.sub)).lean());
     if (!user) {
       clearAuthCookies(res);
       return sendError(res, 401, 'USER_MISSING', 'Пользователь не найден');
@@ -141,7 +139,7 @@ router.post('/refresh', async (req, res) => {
       return sendError(res, 403, 'BLOCKED', 'Аккаунт заблокирован');
     }
     const accessToken = signAccessToken({ id: user.id, role: user.role.toLowerCase() });
-    const maxAge = row.expiresAt.getTime() - Date.now();
+    const maxAge = new Date(row.expiresAt).getTime() - Date.now();
     setAuthCookies(res, user, token, Math.max(maxAge, 0));
     return sendSuccess(res, 200, {
       user: serializeUser(user),
@@ -160,7 +158,7 @@ router.post('/logout', async (req, res) => {
       try {
         const payload = jwt.verify(token, JWT_REFRESH_SECRET);
         if (payload.jti) {
-          await prisma.refreshToken.deleteMany({ where: { jti: payload.jti } });
+          await RefreshToken.deleteMany({ jti: payload.jti });
         }
       } catch {
         /* ignore */
@@ -188,14 +186,12 @@ router.post('/forgot-password', async (req, res) => {
     if (!isValidEmail(email)) {
       return sendError(res, 400, 'VALIDATION', 'Некорректный формат email');
     }
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = toPlain(await User.findOne({ email }).lean());
     if (user) {
-      await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      await PasswordResetToken.deleteMany({ userId: user.id });
       const token = randomUUID();
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-      await prisma.passwordResetToken.create({
-        data: { userId: user.id, token, expiresAt },
-      });
+      await PasswordResetToken.create({ userId: user.id, token, expiresAt });
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const resetUrl = `${baseUrl}/reset-password?token=${token}`;
       await sendPasswordResetEmail({ email, resetUrl });
@@ -221,19 +217,14 @@ router.post('/reset-password', async (req, res) => {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные');
     }
     const { token, password } = parsed.data;
-    const row = await prisma.passwordResetToken.findUnique({ where: { token } });
-    if (!row || row.expiresAt < new Date()) {
+    const row = toPlain(await PasswordResetToken.findOne({ token }).lean());
+    if (!row || new Date(row.expiresAt) < new Date()) {
       return sendError(res, 400, 'INVALID_TOKEN', 'Ссылка недействительна или истекла');
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: row.userId },
-        data: { password: hashedPassword },
-      }),
-      prisma.passwordResetToken.delete({ where: { id: row.id } }),
-      prisma.refreshToken.deleteMany({ where: { userId: row.userId } }),
-    ]);
+    await User.findByIdAndUpdate(row.userId, { $set: { password: hashedPassword } });
+    await PasswordResetToken.deleteOne({ _id: row.id });
+    await RefreshToken.deleteMany({ userId: row.userId });
     return sendSuccess(res, 200, { message: 'Пароль успешно изменён' });
   } catch (error) {
     console.error('POST /api/auth/reset-password error:', error);
@@ -252,7 +243,7 @@ router.patch('/password', requireAuth, async (req, res) => {
     if (!parsed.success) {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные');
     }
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const user = toPlain(await User.findById(req.user.id).lean());
     if (!user) {
       return sendError(res, 404, 'NOT_FOUND', 'Пользователь не найден');
     }
@@ -261,10 +252,7 @@ router.patch('/password', requireAuth, async (req, res) => {
       return sendError(res, 401, 'INVALID_CREDENTIALS', 'Неверный текущий пароль');
     }
     const hashedPassword = await bcrypt.hash(parsed.data.newPassword, 10);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword },
-    });
+    await User.findByIdAndUpdate(user.id, { $set: { password: hashedPassword } });
     return sendSuccess(res, 200, { message: 'Пароль обновлён' });
   } catch (error) {
     console.error('PATCH /api/auth/password error:', error);
@@ -274,10 +262,9 @@ router.patch('/password', requireAuth, async (req, res) => {
 
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: { id: true, email: true, role: true, balance: true, createdAt: true },
-    });
+    const user = toPlain(
+      await User.findById(req.user.id).select('_id email role balance createdAt').lean(),
+    );
     if (!user) {
       return sendError(res, 404, 'NOT_FOUND', 'Пользователь не найден');
     }

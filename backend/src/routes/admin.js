@@ -1,6 +1,14 @@
 const express = require('express');
 const { z } = require('zod');
-const { prisma } = require('../prisma');
+const {
+  User,
+  Product,
+  Game,
+  Order,
+  FaqItem,
+  Review,
+  toPlain,
+} = require('../db/models');
 const { sendError, sendSuccess } = require('../utils/errors');
 const { serializeOrder, serializeProduct, serializeGame } = require('../utils/serializers');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
@@ -11,26 +19,55 @@ const ORDER_STATUSES = ['pending', 'processing', 'completed', 'failed', 'refunde
 
 router.use(requireAuth, requireAdmin);
 
+function nextNumericId(docs) {
+  const numericIds = docs
+    .map((d) => String(d._id ?? d.id))
+    .filter((id) => /^\d+$/.test(id))
+    .map((id) => Number(id));
+  return String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
+}
+
+function prepareOrder(order, userEmail) {
+  const plain = toPlain(order);
+  if (!plain) return null;
+  if (Array.isArray(plain.statusHistory)) {
+    plain.statusHistory = [...plain.statusHistory].sort(
+      (a, b) => new Date(a.changedAt) - new Date(b.changedAt)
+    );
+  }
+  if (userEmail != null) {
+    plain.user = { email: userEmail };
+  }
+  return plain;
+}
+
+async function loadOrderForSerialize(order, { includeUser = false } = {}) {
+  let userEmail = null;
+  if (includeUser && order?.userId) {
+    const user = await User.findById(order.userId).select('email').lean();
+    userEmail = user?.email ?? null;
+  }
+  return prepareOrder(order, includeUser ? userEmail : undefined);
+}
+
 router.get('/orders', async (req, res) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
     const skip = (page - 1) * limit;
     const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        include: {
-          items: true,
-          user: { select: { email: true } },
-          statusHistory: { orderBy: { changedAt: 'asc' } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.order.count(),
+      Order.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Order.countDocuments(),
     ]);
+    const userIds = [...new Set(orders.map((o) => o.userId).filter(Boolean))];
+    const users = userIds.length
+      ? await User.find({ _id: { $in: userIds } }).select('email').lean()
+      : [];
+    const emailById = Object.fromEntries(users.map((u) => [String(u._id), u.email]));
     return sendSuccess(res, 200, {
-      orders: orders.map(serializeOrder),
+      orders: orders.map((o) =>
+        serializeOrder(prepareOrder(o, emailById[String(o.userId)] ?? null))
+      ),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
     });
   } catch (error) {
@@ -41,14 +78,13 @@ router.get('/orders', async (req, res) => {
 
 router.get('/orders/:id', async (req, res) => {
   try {
-    const order = await prisma.order.findFirst({
-      where: { id: req.params.id },
-      include: { items: true, statusHistory: { orderBy: { changedAt: 'asc' } } },
-    });
+    const order = await Order.findById(req.params.id).lean();
     if (!order) {
       return sendError(res, 404, 'NOT_FOUND', 'Заказ не найден');
     }
-    return sendSuccess(res, 200, { order: serializeOrder(order) });
+    return sendSuccess(res, 200, {
+      order: serializeOrder(await loadOrderForSerialize(order)),
+    });
   } catch (error) {
     console.error('GET /api/admin/orders/:id error:', error);
     return sendError(res, 500, 'SERVER', 'Ошибка сервера при загрузке заказа');
@@ -62,27 +98,26 @@ router.patch('/orders/:id', async (req, res) => {
       return sendError(res, 400, 'VALIDATION', 'Некорректный статус');
     }
     const changedAt = new Date();
-    const order = await prisma.$transaction(async (tx) => {
-      const existing = await tx.order.findUnique({ where: { id: req.params.id } });
-      if (!existing) return null;
-      await tx.orderStatusEntry.create({
-        data: {
-          orderId: existing.id,
-          status,
-          changedAt,
-          changedBy: req.user.id,
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: { status, updatedAt: changedAt },
+        $push: {
+          statusHistory: {
+            status,
+            changedAt,
+            changedBy: req.user.id,
+          },
         },
-      });
-      return tx.order.update({
-        where: { id: existing.id },
-        data: { status, updatedAt: changedAt },
-        include: { items: true, statusHistory: { orderBy: { changedAt: 'asc' } } },
-      });
-    });
+      },
+      { new: true }
+    ).lean();
     if (!order) {
       return sendError(res, 404, 'NOT_FOUND', 'Заказ не найден');
     }
-    return sendSuccess(res, 200, { order: serializeOrder(order) });
+    return sendSuccess(res, 200, {
+      order: serializeOrder(await loadOrderForSerialize(order)),
+    });
   } catch (error) {
     console.error('PATCH /api/admin/orders/:id error:', error);
     return sendError(res, 500, 'SERVER', 'Ошибка сервера');
@@ -91,8 +126,10 @@ router.patch('/orders/:id', async (req, res) => {
 
 router.get('/products', async (_req, res) => {
   try {
-    const products = await prisma.product.findMany({ orderBy: { id: 'asc' } });
-    return sendSuccess(res, 200, { products: products.map(serializeProduct) });
+    const products = await Product.find().sort({ _id: 1 }).lean();
+    return sendSuccess(res, 200, {
+      products: products.map((p) => serializeProduct(toPlain(p))),
+    });
   } catch (error) {
     console.error('GET /api/admin/products error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось загрузить товары');
@@ -120,30 +157,24 @@ router.post('/products', async (req, res) => {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные товара');
     }
     const data = parsed.data;
-    const products = await prisma.product.findMany({ select: { id: true } });
-    const numericIds = products
-      .map((p) => p.id)
-      .filter((id) => /^\d+$/.test(id))
-      .map((id) => Number(id));
-    const nextId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
+    const products = await Product.find().select('_id').lean();
+    const nextId = nextNumericId(products);
     const stock = data.stock ?? 100;
-    const product = await prisma.product.create({
-      data: {
-        id: nextId,
-        title: data.title,
-        category: data.category,
-        platform: data.platform,
-        price: data.price,
-        oldPrice: data.oldPrice ?? null,
-        image: data.image,
-        description: data.description ?? null,
-        popular: data.popular ?? false,
-        inStock: data.inStock ?? stock > 0,
-        stock,
-        gameSlug: data.gameSlug ?? null,
-      },
+    const product = await Product.create({
+      _id: nextId,
+      title: data.title,
+      category: data.category,
+      platform: data.platform,
+      price: data.price,
+      oldPrice: data.oldPrice ?? null,
+      image: data.image,
+      description: data.description ?? null,
+      popular: data.popular ?? false,
+      inStock: data.inStock ?? stock > 0,
+      stock,
+      gameSlug: data.gameSlug ?? null,
     });
-    return sendSuccess(res, 201, { product: serializeProduct(product) });
+    return sendSuccess(res, 201, { product: serializeProduct(toPlain(product)) });
   } catch (error) {
     console.error('POST /api/admin/products error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось создать товар');
@@ -156,22 +187,28 @@ router.patch('/products/:id', async (req, res) => {
     if (!parsed.success) {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные товара');
     }
-    const products = await prisma.product.findMany();
-    const existing = products.find((p) => isSameId(p.id, req.params.id));
+    let existing = toPlain(await Product.findById(req.params.id).lean());
+    if (!existing) {
+      const products = await Product.find().lean();
+      existing = products.map(toPlain).find((p) => isSameId(p.id, req.params.id)) ?? null;
+    }
     if (!existing) {
       return sendError(res, 404, 'NOT_FOUND', 'Товар не найден');
     }
     const data = parsed.data;
     const stock = data.stock ?? existing.stock;
-    const product = await prisma.product.update({
-      where: { id: existing.id },
-      data: {
-        ...data,
-        stock,
-        inStock: data.inStock ?? stock > 0,
+    const product = await Product.findByIdAndUpdate(
+      existing.id,
+      {
+        $set: {
+          ...data,
+          stock,
+          inStock: data.inStock ?? stock > 0,
+        },
       },
-    });
-    return sendSuccess(res, 200, { product: serializeProduct(product) });
+      { new: true }
+    );
+    return sendSuccess(res, 200, { product: serializeProduct(toPlain(product)) });
   } catch (error) {
     console.error('PATCH /api/admin/products/:id error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось обновить товар');
@@ -180,12 +217,15 @@ router.patch('/products/:id', async (req, res) => {
 
 router.delete('/products/:id', async (req, res) => {
   try {
-    const products = await prisma.product.findMany();
-    const existing = products.find((p) => isSameId(p.id, req.params.id));
+    let existing = toPlain(await Product.findById(req.params.id).lean());
+    if (!existing) {
+      const products = await Product.find().lean();
+      existing = products.map(toPlain).find((p) => isSameId(p.id, req.params.id)) ?? null;
+    }
     if (!existing) {
       return sendError(res, 404, 'NOT_FOUND', 'Товар не найден');
     }
-    await prisma.product.delete({ where: { id: existing.id } });
+    await Product.findByIdAndDelete(existing.id);
     return sendSuccess(res, 200, {});
   } catch (error) {
     console.error('DELETE /api/admin/products/:id error:', error);
@@ -197,39 +237,34 @@ router.get('/stats', async (_req, res) => {
   try {
     const [orderCount, productCount, userCount, revenueAgg, statusGroups, topProducts] =
       await Promise.all([
-        prisma.order.count(),
-        prisma.product.count(),
-        prisma.user.count(),
-        prisma.order.aggregate({
-          where: { status: 'completed' },
-          _sum: { totalAmount: true },
-        }),
-        prisma.order.groupBy({
-          by: ['status'],
-          _count: { status: true },
-        }),
-        prisma.orderItem.groupBy({
-          by: ['title'],
-          _sum: { quantity: true },
-          orderBy: { _sum: { quantity: 'desc' } },
-          take: 5,
-        }),
+        Order.countDocuments(),
+        Product.countDocuments(),
+        User.countDocuments(),
+        Order.aggregate([
+          { $match: { status: 'completed' } },
+          { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+        ]),
+        Order.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+        Order.aggregate([
+          { $unwind: '$items' },
+          { $group: { _id: '$items.title', quantity: { $sum: '$items.quantity' } } },
+          { $sort: { quantity: -1 } },
+          { $limit: 5 },
+        ]),
       ]);
 
-    const ordersByStatus = Object.fromEntries(
-      statusGroups.map((g) => [g.status, g._count.status])
-    );
+    const ordersByStatus = Object.fromEntries(statusGroups.map((g) => [g._id, g.count]));
 
     return sendSuccess(res, 200, {
       stats: {
         orderCount,
         productCount,
         userCount,
-        revenue: revenueAgg._sum.totalAmount ?? 0,
+        revenue: revenueAgg[0]?.total ?? 0,
         ordersByStatus,
         topProducts: topProducts.map((p) => ({
-          title: p.title,
-          quantity: p._sum.quantity ?? 0,
+          title: p._id,
+          quantity: p.quantity ?? 0,
         })),
       },
     });
@@ -241,8 +276,10 @@ router.get('/stats', async (_req, res) => {
 
 router.get('/games', async (_req, res) => {
   try {
-    const games = await prisma.game.findMany({ orderBy: { name: 'asc' } });
-    return sendSuccess(res, 200, { games: games.map(serializeGame) });
+    const games = await Game.find().sort({ name: 1 }).lean();
+    return sendSuccess(res, 200, {
+      games: games.map((g) => serializeGame(toPlain(g))),
+    });
   } catch (error) {
     console.error('GET /api/admin/games error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось загрузить игры');
@@ -266,29 +303,23 @@ router.post('/games', async (req, res) => {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные игры');
     }
     const data = parsed.data;
-    const existing = await prisma.game.findUnique({ where: { slug: data.slug } });
+    const existing = await Game.findOne({ slug: data.slug }).lean();
     if (existing) {
       return sendError(res, 409, 'CONFLICT', 'Игра с таким slug уже существует');
     }
-    const games = await prisma.game.findMany({ select: { id: true } });
-    const numericIds = games
-      .map((g) => g.id)
-      .filter((id) => /^\d+$/.test(id))
-      .map((id) => Number(id));
-    const nextId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
-    const game = await prisma.game.create({
-      data: {
-        id: nextId,
-        slug: data.slug,
-        name: data.name,
-        cover: data.cover,
-        genres: data.genres ?? [],
-        platforms: data.platforms ?? [],
-        description: data.description ?? null,
-        popular: data.popular ?? false,
-      },
+    const games = await Game.find().select('_id').lean();
+    const nextId = nextNumericId(games);
+    const game = await Game.create({
+      _id: nextId,
+      slug: data.slug,
+      name: data.name,
+      cover: data.cover,
+      genres: data.genres ?? [],
+      platforms: data.platforms ?? [],
+      description: data.description ?? null,
+      popular: data.popular ?? false,
     });
-    return sendSuccess(res, 201, { game: serializeGame(game) });
+    return sendSuccess(res, 201, { game: serializeGame(toPlain(game)) });
   } catch (error) {
     console.error('POST /api/admin/games error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось создать игру');
@@ -301,21 +332,22 @@ router.patch('/games/:id', async (req, res) => {
     if (!parsed.success) {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные игры');
     }
-    const game = await prisma.game.findUnique({ where: { id: req.params.id } });
+    const game = toPlain(await Game.findById(req.params.id).lean());
     if (!game) {
       return sendError(res, 404, 'NOT_FOUND', 'Игра не найдена');
     }
     if (parsed.data.slug && parsed.data.slug !== game.slug) {
-      const slugTaken = await prisma.game.findUnique({ where: { slug: parsed.data.slug } });
+      const slugTaken = await Game.findOne({ slug: parsed.data.slug }).lean();
       if (slugTaken) {
         return sendError(res, 409, 'CONFLICT', 'Slug уже занят');
       }
     }
-    const updated = await prisma.game.update({
-      where: { id: game.id },
-      data: parsed.data,
-    });
-    return sendSuccess(res, 200, { game: serializeGame(updated) });
+    const updated = await Game.findByIdAndUpdate(
+      game.id,
+      { $set: parsed.data },
+      { new: true }
+    );
+    return sendSuccess(res, 200, { game: serializeGame(toPlain(updated)) });
   } catch (error) {
     console.error('PATCH /api/admin/games/:id error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось обновить игру');
@@ -324,11 +356,10 @@ router.patch('/games/:id', async (req, res) => {
 
 router.delete('/games/:id', async (req, res) => {
   try {
-    const game = await prisma.game.findUnique({ where: { id: req.params.id } });
+    const game = await Game.findByIdAndDelete(req.params.id);
     if (!game) {
       return sendError(res, 404, 'NOT_FOUND', 'Игра не найдена');
     }
-    await prisma.game.delete({ where: { id: game.id } });
     return sendSuccess(res, 200, {});
   } catch (error) {
     console.error('DELETE /api/admin/games/:id error:', error);
@@ -338,8 +369,8 @@ router.delete('/games/:id', async (req, res) => {
 
 router.get('/faq', async (_req, res) => {
   try {
-    const items = await prisma.faqItem.findMany({ orderBy: { sort: 'asc' } });
-    return sendSuccess(res, 200, { items });
+    const items = await FaqItem.find().sort({ sort: 1 }).lean();
+    return sendSuccess(res, 200, { items: items.map(toPlain) });
   } catch (error) {
     console.error('GET /api/admin/faq error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось загрузить FAQ');
@@ -358,16 +389,15 @@ router.post('/faq', async (req, res) => {
     if (!parsed.success) {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные FAQ');
     }
-    const items = await prisma.faqItem.findMany({ select: { id: true } });
-    const numericIds = items
-      .map((i) => i.id)
-      .filter((id) => /^\d+$/.test(id))
-      .map((id) => Number(id));
-    const nextId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
-    const item = await prisma.faqItem.create({
-      data: { id: nextId, ...parsed.data, sort: parsed.data.sort ?? 0 },
+    const items = await FaqItem.find().select('_id').lean();
+    const nextId = nextNumericId(items);
+    const item = await FaqItem.create({
+      _id: nextId,
+      question: parsed.data.question,
+      answer: parsed.data.answer,
+      sort: parsed.data.sort ?? 0,
     });
-    return sendSuccess(res, 201, { item });
+    return sendSuccess(res, 201, { item: toPlain(item) });
   } catch (error) {
     console.error('POST /api/admin/faq error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось создать FAQ');
@@ -380,11 +410,15 @@ router.patch('/faq/:id', async (req, res) => {
     if (!parsed.success) {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные FAQ');
     }
-    const item = await prisma.faqItem.update({
-      where: { id: req.params.id },
-      data: parsed.data,
-    });
-    return sendSuccess(res, 200, { item });
+    const item = await FaqItem.findByIdAndUpdate(
+      req.params.id,
+      { $set: parsed.data },
+      { new: true }
+    );
+    if (!item) {
+      return sendError(res, 404, 'NOT_FOUND', 'FAQ не найден');
+    }
+    return sendSuccess(res, 200, { item: toPlain(item) });
   } catch (error) {
     console.error('PATCH /api/admin/faq/:id error:', error);
     return sendError(res, 404, 'NOT_FOUND', 'FAQ не найден');
@@ -393,7 +427,10 @@ router.patch('/faq/:id', async (req, res) => {
 
 router.delete('/faq/:id', async (req, res) => {
   try {
-    await prisma.faqItem.delete({ where: { id: req.params.id } });
+    const item = await FaqItem.findByIdAndDelete(req.params.id);
+    if (!item) {
+      return sendError(res, 404, 'NOT_FOUND', 'FAQ не найден');
+    }
     return sendSuccess(res, 200, {});
   } catch (error) {
     console.error('DELETE /api/admin/faq/:id error:', error);
@@ -403,8 +440,8 @@ router.delete('/faq/:id', async (req, res) => {
 
 router.get('/reviews', async (_req, res) => {
   try {
-    const reviews = await prisma.review.findMany({ orderBy: { createdAt: 'desc' } });
-    return sendSuccess(res, 200, { reviews });
+    const reviews = await Review.find().sort({ createdAt: -1 }).lean();
+    return sendSuccess(res, 200, { reviews: reviews.map(toPlain) });
   } catch (error) {
     console.error('GET /api/admin/reviews error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось загрузить отзывы');
@@ -414,11 +451,15 @@ router.get('/reviews', async (_req, res) => {
 router.patch('/reviews/:id', async (req, res) => {
   try {
     const published = Boolean(req.body?.published);
-    const review = await prisma.review.update({
-      where: { id: req.params.id },
-      data: { published },
-    });
-    return sendSuccess(res, 200, { review });
+    const review = await Review.findByIdAndUpdate(
+      req.params.id,
+      { $set: { published } },
+      { new: true }
+    );
+    if (!review) {
+      return sendError(res, 404, 'NOT_FOUND', 'Отзыв не найден');
+    }
+    return sendSuccess(res, 200, { review: toPlain(review) });
   } catch (error) {
     console.error('PATCH /api/admin/reviews/:id error:', error);
     return sendError(res, 404, 'NOT_FOUND', 'Отзыв не найден');
@@ -427,7 +468,10 @@ router.patch('/reviews/:id', async (req, res) => {
 
 router.delete('/reviews/:id', async (req, res) => {
   try {
-    await prisma.review.delete({ where: { id: req.params.id } });
+    const review = await Review.findByIdAndDelete(req.params.id);
+    if (!review) {
+      return sendError(res, 404, 'NOT_FOUND', 'Отзыв не найден');
+    }
     return sendSuccess(res, 200, {});
   } catch (error) {
     console.error('DELETE /api/admin/reviews/:id error:', error);
@@ -441,32 +485,36 @@ router.get('/users', async (req, res) => {
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
     const skip = (page - 1) * limit;
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          balance: true,
-          blocked: true,
-          createdAt: true,
-          _count: { select: { orders: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.user.count(),
+      User.find()
+        .select('email role balance blocked createdAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(),
     ]);
+    const userIds = users.map((u) => String(u._id));
+    const orderCounts =
+      userIds.length === 0
+        ? []
+        : await Order.aggregate([
+            { $match: { userId: { $in: userIds } } },
+            { $group: { _id: '$userId', count: { $sum: 1 } } },
+          ]);
+    const countByUser = Object.fromEntries(orderCounts.map((c) => [c._id, c.count]));
     return sendSuccess(res, 200, {
-      users: users.map((u) => ({
-        id: u.id,
-        email: u.email,
-        role: u.role.toLowerCase(),
-        balance: u.balance,
-        blocked: u.blocked,
-        createdAt: u.createdAt.toISOString(),
-        orderCount: u._count.orders,
-      })),
+      users: users.map((u) => {
+        const plain = toPlain(u);
+        return {
+          id: plain.id,
+          email: plain.email,
+          role: String(plain.role).toLowerCase(),
+          balance: plain.balance,
+          blocked: plain.blocked,
+          createdAt: new Date(plain.createdAt).toISOString(),
+          orderCount: countByUser[plain.id] ?? 0,
+        };
+      }),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
     });
   } catch (error) {
@@ -494,15 +542,24 @@ router.patch('/users/:id', async (req, res) => {
     if (Object.keys(data).length === 0) {
       return sendError(res, 400, 'VALIDATION', 'Нет данных для обновления');
     }
-    const user = await prisma.user.update({
-      where: { id: req.params.id },
-      data,
-      select: { id: true, email: true, role: true, balance: true, blocked: true },
-    });
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: data },
+      { new: true }
+    )
+      .select('email role balance blocked')
+      .lean();
+    if (!user) {
+      return sendError(res, 404, 'NOT_FOUND', 'Пользователь не найден');
+    }
+    const plain = toPlain(user);
     return sendSuccess(res, 200, {
       user: {
-        ...user,
-        role: user.role.toLowerCase(),
+        id: plain.id,
+        email: plain.email,
+        role: String(plain.role).toLowerCase(),
+        balance: plain.balance,
+        blocked: plain.blocked,
       },
     });
   } catch (error) {

@@ -1,6 +1,6 @@
-# Backend (Express + Prisma + SQLite)
+# Backend (Express + Mongoose + MongoDB)
 
-Отдельный процесс API. Данные в **SQLite** (`backend/prisma/dev.db` по умолчанию), ORM — **Prisma**. Авторизация: **JWT** (access в JSON, refresh в httpOnly-cookie с `Path=/api/auth`).
+Отдельный процесс API. Данные в **MongoDB**, ODM — **Mongoose**. Авторизация: **JWT** (access в JSON, refresh в httpOnly-cookie с `Path=/api/auth`).
 
 ## Установка
 
@@ -10,34 +10,35 @@ npm install --prefix backend
 
 Создайте `backend/.env` с переменными:
 
-- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` — длинные случайные строки  
-- `DATABASE_URL="file:./prisma/dev.db"` (как в примере)
+- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` — длинные случайные строки
+- `MONGODB_URI=mongodb://127.0.0.1:27017/onesec` (локальный Mongo; иначе в non-production поднимется in-memory)
 
 ## Переменные окружения
 
 | Переменная | Описание |
 |------------|----------|
 | `PORT` / `BACKEND_PORT` | Порт (по умолчанию 4000) |
-| `DATABASE_URL` | SQLite datasource для Prisma |
+| `MONGODB_URI` | Строка подключения MongoDB |
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Подпись access / refresh токенов |
 | `JWT_ACCESS_TTL` / `JWT_REFRESH_TTL` | TTL (например `15m`, `14d`) |
 | `COOKIE_SECURE` | `true` в продакшене за HTTPS |
 | `FRONTEND_URL` | URL фронтенда для ссылок сброса пароля |
 | `PAYMENT_WEBHOOK_SECRET` | Секрет для `/api/payments/webhook` |
+| `RUN_SEED` | `true` — принудительный reseed при старте |
 
 ## База данных
 
 ```bash
 # из папки backend/
-npm run prisma:generate
-npm run prisma:migrate
 npm run db:seed
 
-# или полный сброс (migrate reset + seed)
+# или полный wipe + seed
 npm run db:reset
 ```
 
-Сид заполняет таблицы из **`data/db.json`** (`prisma/seed.js`). Пароли пользователей хешируются bcrypt при сиде.
+Сид заполняет коллекции из **`data/db.json`** (`src/db/seed.js`). Пароли пользователей хешируются bcrypt при сиде.
+
+При пустой БД сервер автоматически сидит данные на старте.
 
 ## Запуск
 
@@ -45,15 +46,15 @@ npm run db:reset
 npm run dev
 ```
 
-Или из корня репозитория: `npm run backend:dev` / `npm run dev:all`.
+Или из корня репозитория: `npm run backend:dev` / `npm run dev` (backend + Vite).
 
 ## OpenAPI
 
-Спецификация REST-контракта: [`openapi.yaml`](openapi.yaml). Интерактивный UI: **`http://localhost:4000/api/docs`** (Swagger UI).
+Спецификация REST-контракта: [`openapi.yaml`](openapi.yaml). Интерактивный UI: **`http://localhost:4000/api/docs`** (Swagger UI, не в production).
 
-## API (через Next в браузере)
+## API (через Vite в браузере)
 
-Клиент обращается к **`/api/...`** на origin Next; Next **rewrites** проксирует на этот сервис. Прямой вызов с машины разработчика: `http://localhost:4000/api/...`.
+Клиент обращается к **`/api/...`** на origin SPA; Vite dev-proxy (и nginx в production) проксирует на этот сервис. Прямой вызов: `http://localhost:4000/api/...`.
 
 ### Формат ответов
 
@@ -78,40 +79,8 @@ npm run dev
 | POST | `/api/auth/login` | Вход, выдача access + refresh cookie |
 | POST | `/api/auth/refresh` | Обновление access по refresh cookie |
 | POST | `/api/auth/logout` | Выход |
-| GET | `/api/auth/me` | Профиль (Bearer) |
-| POST | `/api/auth/forgot-password` | Запрос сброса пароля (ссылка в консоль в dev) |
-| POST | `/api/auth/reset-password` | Установка нового пароля по токену |
-| PATCH | `/api/auth/password` | Смена пароля (Bearer) |
-| GET/POST/PATCH/DELETE | `/api/cart` | Серверная корзина (Bearer) |
-| POST | `/api/cart/merge` | Merge localStorage-корзины (Bearer) |
-| POST | `/api/payments/webhook` | Симуляция оплаты заказа |
-| GET | `/api/reviews` | Опубликованные отзывы |
-| POST | `/api/reviews` | Отправить отзыв (Bearer, после completed заказа) |
-| GET | `/api/faq` | Список вопросов FAQ |
-| GET | `/api/games` | Список игр |
-| GET | `/api/games/:slug` | Игра по slug |
-| GET | `/api/categories` | Список категорий |
-| GET | `/api/products` | Товары (`?category=&platform=&q=&sort=&page=&limit=&popular=1&inStock=1&discount=1`) |
-| GET | `/api/products/:id` | Товар по id |
-| GET | `/api/orders` | Заказы пользователя (Bearer) |
-| POST | `/api/orders` | Создать заказ, списание stock (Bearer) |
-| GET | `/api/admin/orders` | Все заказы (admin) |
-| PATCH | `/api/admin/orders/:id` | Смена статуса (admin) |
-| GET/POST/PATCH/DELETE | `/api/admin/products` | CRUD товаров (admin) |
-| GET/POST/PATCH/DELETE | `/api/admin/games` | CRUD игр (admin) |
-| GET/POST/PATCH/DELETE | `/api/admin/faq` | CRUD FAQ (admin) |
-| GET/PATCH/DELETE | `/api/admin/reviews` | Модерация отзывов (admin) |
-| GET/PATCH | `/api/admin/users` | Пользователи: роль, баланс, блокировка (admin) |
-| GET | `/api/admin/stats` | Дашборд: выручка, заказы, топ товаров (admin) |
+| GET | `/api/products` | Каталог |
+| GET/POST/PATCH | `/api/cart`, `/api/favorites`, `/api/orders` | Коммерция (auth) |
+| `/api/admin/*` | Админ-CRUD (роль admin) |
 
-## Тесты
-
-```bash
-cd backend
-npm install
-npm test
-```
-
-## Безопасность
-
-Подключены **helmet**, **express-rate-limit** (жёстче на `/api/auth/*`, мягче на `/api/*`). Вход только по bcrypt-паролям.
+Демо-аккаунты — в корневом [`README.md`](../README.md).

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { prisma } = require('../prisma');
+const { User, toPlain } = require('../db/models');
 const { sendError } = require('../utils/errors');
 const { JWT_ACCESS_SECRET } = require('../utils/tokens');
 
@@ -14,7 +14,7 @@ async function requireAuth(req, res, next) {
     if (!payload.sub) {
       return sendError(res, 401, 'UNAUTHORIZED', 'Неверный токен');
     }
-    const user = await prisma.user.findUnique({ where: { id: String(payload.sub) } });
+    const user = toPlain(await User.findById(String(payload.sub)).lean());
     if (!user) {
       return sendError(res, 401, 'UNAUTHORIZED', 'Пользователь не найден');
     }

@@ -1,12 +1,11 @@
 const express = require('express');
-const { prisma } = require('../prisma');
+const { Order } = require('../db/models');
 const { sendError, sendSuccess } = require('../utils/errors');
 
 const router = express.Router();
 
 /**
  * Simulated payment webhook — advances order pending → processing → completed.
- * In production this would be called by a payment provider.
  */
 router.post('/webhook', async (req, res) => {
   try {
@@ -21,7 +20,7 @@ router.post('/webhook', async (req, res) => {
       return sendError(res, 403, 'FORBIDDEN', 'Неверный секрет webhook');
     }
 
-    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    const order = await Order.findById(orderId);
     if (!order) {
       return sendError(res, 404, 'NOT_FOUND', 'Заказ не найден');
     }
@@ -33,38 +32,27 @@ router.post('/webhook', async (req, res) => {
     }
 
     const now = new Date();
-    const nextStatus = order.status === 'pending' ? 'processing' : 'completed';
-
-    await prisma.$transaction(async (tx) => {
-      await tx.orderStatusEntry.create({
-        data: {
-          orderId: order.id,
-          status: nextStatus,
-          changedAt: now,
+    if (order.status === 'pending') {
+      order.statusHistory.push(
+        { status: 'processing', changedAt: now, changedBy: 'payment-webhook' },
+        {
+          status: 'completed',
+          changedAt: new Date(now.getTime() + 1),
           changedBy: 'payment-webhook',
         },
+      );
+      order.status = 'completed';
+      order.updatedAt = new Date(now.getTime() + 1);
+    } else {
+      order.statusHistory.push({
+        status: 'completed',
+        changedAt: now,
+        changedBy: 'payment-webhook',
       });
-      await tx.order.update({
-        where: { id: order.id },
-        data: { status: nextStatus, updatedAt: now },
-      });
-      if (nextStatus === 'processing') {
-        // Second webhook call completes the order
-        const later = new Date(now.getTime() + 1);
-        await tx.orderStatusEntry.create({
-          data: {
-            orderId: order.id,
-            status: 'completed',
-            changedAt: later,
-            changedBy: 'payment-webhook',
-          },
-        });
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: 'completed', updatedAt: later },
-        });
-      }
-    });
+      order.status = 'completed';
+      order.updatedAt = now;
+    }
+    await order.save();
 
     return sendSuccess(res, 200, { orderId, status: 'completed' });
   } catch (error) {

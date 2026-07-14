@@ -1,6 +1,6 @@
 const express = require('express');
 const { z } = require('zod');
-const { prisma } = require('../prisma');
+const { Review, Order, User, toPlain } = require('../db/models');
 const { sendError, sendSuccess } = require('../utils/errors');
 const { requireAuth } = require('../middleware/auth');
 
@@ -8,11 +8,8 @@ const router = express.Router();
 
 router.get('/', async (_req, res) => {
   try {
-    const reviews = await prisma.review.findMany({
-      where: { published: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return sendSuccess(res, 200, { reviews });
+    const reviews = await Review.find({ published: true }).sort({ createdAt: -1 }).lean();
+    return sendSuccess(res, 200, { reviews: reviews.map(toPlain) });
   } catch (error) {
     console.error('GET /api/reviews error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось загрузить отзывы');
@@ -31,25 +28,25 @@ router.post('/', requireAuth, async (req, res) => {
       return sendError(res, 400, 'VALIDATION', 'Некорректные данные отзыва');
     }
 
-    const completedOrder = await prisma.order.findFirst({
-      where: { userId: req.user.id, status: 'completed' },
-    });
+    const completedOrder = await Order.findOne({ userId: req.user.id, status: 'completed' }).lean();
     if (!completedOrder) {
       return sendError(res, 403, 'FORBIDDEN', 'Отзыв можно оставить только после завершённого заказа');
     }
 
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const user = toPlain(await User.findById(req.user.id).lean());
     const author = user?.email?.split('@')[0] || 'Покупатель';
 
-    const review = await prisma.review.create({
-      data: {
-        author,
-        rating: parsed.data.rating,
-        text: parsed.data.text.trim(),
-        userId: req.user.id,
-        published: false,
-      },
-    });
+    const review = toPlain(
+      (
+        await Review.create({
+          author,
+          rating: parsed.data.rating,
+          text: parsed.data.text.trim(),
+          userId: req.user.id,
+          published: false,
+        })
+      ).toObject(),
+    );
 
     return sendSuccess(res, 201, {
       review,

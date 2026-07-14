@@ -1,7 +1,8 @@
 const express = require('express');
 const { randomUUID } = require('crypto');
+const mongoose = require('mongoose');
 const { z } = require('zod');
-const { prisma } = require('../prisma');
+const { Order, Product, User, CartItem, toPlain } = require('../db/models');
 const { sendError, sendSuccess, AppError } = require('../utils/errors');
 const { serializeOrder } = require('../utils/serializers');
 const { requireAuth } = require('../middleware/auth');
@@ -12,29 +13,44 @@ const router = express.Router();
 async function createUniqueOrderId() {
   for (let i = 0; i < 20; i += 1) {
     const id = generateStringId(8);
-    const exists = await prisma.order.findUnique({ where: { id } });
+    const exists = await Order.findById(id).lean();
     if (!exists) return id;
   }
   return randomUUID().replace(/-/g, '').slice(0, 12);
 }
 
+function normalizeOrder(doc) {
+  const order = toPlain(doc);
+  if (!order) return null;
+  order.items = (order.items || []).map((it) => {
+    const item = { ...it };
+    if (item._id != null && item.id == null) item.id = String(item._id);
+    delete item._id;
+    return item;
+  });
+  order.statusHistory = (order.statusHistory || [])
+    .map((h) => {
+      const entry = { ...h };
+      if (entry._id != null && entry.id == null) entry.id = String(entry._id);
+      delete entry._id;
+      return entry;
+    })
+    .sort((a, b) => new Date(a.changedAt) - new Date(b.changedAt));
+  return order;
+}
+
 async function simulatePaymentCompletion(orderId) {
   const now = new Date();
-  await prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({ where: { id: orderId } });
-    if (!order || order.status !== 'pending') return;
-    await tx.orderStatusEntry.create({
-      data: { orderId, status: 'processing', changedAt: now, changedBy: 'payment-sim' },
-    });
-    const completedAt = new Date(now.getTime() + 1);
-    await tx.orderStatusEntry.create({
-      data: { orderId, status: 'completed', changedAt: completedAt, changedBy: 'payment-sim' },
-    });
-    await tx.order.update({
-      where: { id: orderId },
-      data: { status: 'completed', updatedAt: completedAt },
-    });
-  });
+  const order = await Order.findById(orderId);
+  if (!order || order.status !== 'pending') return;
+  const completedAt = new Date(now.getTime() + 1);
+  order.statusHistory.push(
+    { status: 'processing', changedAt: now, changedBy: 'payment-sim' },
+    { status: 'completed', changedAt: completedAt, changedBy: 'payment-sim' },
+  );
+  order.status = 'completed';
+  order.updatedAt = completedAt;
+  await order.save();
 }
 
 router.get('/', requireAuth, async (req, res) => {
@@ -42,19 +58,13 @@ router.get('/', requireAuth, async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
     const skip = (page - 1) * limit;
-    const where = { userId: req.user.id };
+    const filter = { userId: req.user.id };
     const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        include: { items: true, statusHistory: { orderBy: { changedAt: 'asc' } } },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.order.count({ where }),
+      Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Order.countDocuments(filter),
     ]);
     return sendSuccess(res, 200, {
-      orders: orders.map(serializeOrder),
+      orders: orders.map((o) => serializeOrder(normalizeOrder(o))),
       pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
     });
   } catch (error) {
@@ -65,10 +75,9 @@ router.get('/', requireAuth, async (req, res) => {
 
 router.get('/:id', requireAuth, async (req, res) => {
   try {
-    const order = await prisma.order.findFirst({
-      where: { id: req.params.id, userId: req.user.id },
-      include: { items: true, statusHistory: { orderBy: { changedAt: 'asc' } } },
-    });
+    const order = normalizeOrder(
+      await Order.findOne({ _id: req.params.id, userId: req.user.id }).lean(),
+    );
     if (!order) {
       return sendError(res, 404, 'NOT_FOUND', 'Заказ не найден');
     }
@@ -83,7 +92,7 @@ const orderItemsSchema = z.array(
   z.object({
     productId: z.union([z.string(), z.number()]),
     quantity: z.number().int().positive().optional(),
-  })
+  }),
 );
 
 const createOrderSchema = z.object({
@@ -103,95 +112,151 @@ router.post('/', requireAuth, async (req, res) => {
     const idempotencyKey = parsed.data.idempotencyKey?.trim() || null;
 
     if (idempotencyKey) {
-      const existing = await prisma.order.findUnique({ where: { idempotencyKey } });
+      const existing = normalizeOrder(await Order.findOne({ idempotencyKey }).lean());
       if (existing && existing.userId === userId) {
-        const full = await prisma.order.findUnique({
-          where: { id: existing.id },
-          include: { items: true, statusHistory: { orderBy: { changedAt: 'asc' } } },
-        });
-        return sendSuccess(res, 200, { order: serializeOrder(full) });
+        return sendSuccess(res, 200, { order: serializeOrder(existing) });
       }
     }
 
-    const order = await prisma.$transaction(async (tx) => {
-      const lines = [];
-      for (const item of parsed.data.items) {
-        const productId = String(item.productId);
-        const quantity = item.quantity ?? 1;
-        if (!productId || quantity <= 0) {
-          throw new AppError(400, 'VALIDATION', 'Некорректные товары в заказе');
+    const session = await mongoose.startSession();
+    let createdOrder;
+    try {
+      await session.withTransaction(async () => {
+        const lines = [];
+        for (const item of parsed.data.items) {
+          const productId = String(item.productId);
+          const quantity = item.quantity ?? 1;
+          if (!productId || quantity <= 0) {
+            throw new AppError(400, 'VALIDATION', 'Некорректные товары в заказе');
+          }
+          const product = toPlain(await Product.findById(productId).session(session).lean());
+          if (!product) {
+            throw new AppError(404, 'NOT_FOUND', `Товар ${productId} не найден`);
+          }
+          if (product.inStock === false || product.stock < quantity) {
+            throw new AppError(
+              400,
+              'OUT_OF_STOCK',
+              `Товар «${product.title}» временно недоступен (осталось: ${product.stock})`,
+            );
+          }
+          const newStock = product.stock - quantity;
+          await Product.findByIdAndUpdate(
+            product.id,
+            { $set: { stock: newStock, inStock: newStock > 0 } },
+            { session },
+          );
+          lines.push({
+            productId: product.id,
+            title: product.title,
+            image: product.image,
+            quantity,
+            priceAtPurchase: product.price,
+          });
         }
-        const product = await tx.product.findFirst({ where: { id: productId } });
-        if (!product) {
-          throw new AppError(404, 'NOT_FOUND', `Товар ${productId} не найден`);
-        }
-        if (product.inStock === false || product.stock < quantity) {
-          throw new AppError(
-            400,
-            'OUT_OF_STOCK',
-            `Товар «${product.title}» временно недоступен (осталось: ${product.stock})`
+        const totalAmount = lines.reduce((s, l) => s + l.priceAtPurchase * l.quantity, 0);
+
+        if (paymentMethod === 'balance') {
+          const user = toPlain(await User.findById(userId).session(session).lean());
+          if (!user || user.balance < totalAmount) {
+            throw new AppError(400, 'INSUFFICIENT_BALANCE', 'Недостаточно средств на балансе OneSec');
+          }
+          await User.findByIdAndUpdate(
+            userId,
+            { $set: { balance: user.balance - totalAmount } },
+            { session },
           );
         }
-        const newStock = product.stock - quantity;
-        await tx.product.update({
-          where: { id: product.id },
-          data: {
-            stock: newStock,
-            inStock: newStock > 0,
-          },
-        });
-        lines.push({
-          productId: product.id,
-          title: product.title,
-          image: product.image,
-          quantity,
-          priceAtPurchase: product.price,
-        });
-      }
-      const totalAmount = lines.reduce((s, l) => s + l.priceAtPurchase * l.quantity, 0);
 
-      if (paymentMethod === 'balance') {
-        const user = await tx.user.findUnique({ where: { id: userId } });
-        if (!user || user.balance < totalAmount) {
-          throw new AppError(400, 'INSUFFICIENT_BALANCE', 'Недостаточно средств на балансе OneSec');
+        const now = new Date();
+        const orderId = await createUniqueOrderId();
+        const [created] = await Order.create(
+          [
+            {
+              _id: orderId,
+              userId,
+              status: 'pending',
+              totalAmount,
+              paymentMethod,
+              ...(idempotencyKey ? { idempotencyKey } : {}),
+              createdAt: now,
+              updatedAt: now,
+              items: lines,
+              statusHistory: [{ status: 'pending', changedAt: now, changedBy: 'system' }],
+            },
+          ],
+          { session },
+        );
+        await CartItem.deleteMany({ userId }).session(session);
+        createdOrder = normalizeOrder(created.toObject());
+      });
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      // Fallback without transactions (standalone mongod / memory server without replica set)
+      if (String(err.message || '').includes('Transaction numbers') || err.code === 20) {
+        const lines = [];
+        for (const item of parsed.data.items) {
+          const productId = String(item.productId);
+          const quantity = item.quantity ?? 1;
+          const product = toPlain(await Product.findById(productId).lean());
+          if (!product) throw new AppError(404, 'NOT_FOUND', `Товар ${productId} не найден`);
+          if (product.inStock === false || product.stock < quantity) {
+            throw new AppError(
+              400,
+              'OUT_OF_STOCK',
+              `Товар «${product.title}» временно недоступен (осталось: ${product.stock})`,
+            );
+          }
+          const newStock = product.stock - quantity;
+          await Product.findByIdAndUpdate(product.id, {
+            $set: { stock: newStock, inStock: newStock > 0 },
+          });
+          lines.push({
+            productId: product.id,
+            title: product.title,
+            image: product.image,
+            quantity,
+            priceAtPurchase: product.price,
+          });
         }
-        await tx.user.update({
-          where: { id: userId },
-          data: { balance: user.balance - totalAmount },
-        });
-      }
-
-      const now = new Date();
-      const orderId = await createUniqueOrderId();
-      const created = await tx.order.create({
-        data: {
-          id: orderId,
+        const totalAmount = lines.reduce((s, l) => s + l.priceAtPurchase * l.quantity, 0);
+        if (paymentMethod === 'balance') {
+          const user = toPlain(await User.findById(userId).lean());
+          if (!user || user.balance < totalAmount) {
+            throw new AppError(400, 'INSUFFICIENT_BALANCE', 'Недостаточно средств на балансе OneSec');
+          }
+          await User.findByIdAndUpdate(userId, { $set: { balance: user.balance - totalAmount } });
+        }
+        const now = new Date();
+        const orderId = await createUniqueOrderId();
+        const created = await Order.create({
+          _id: orderId,
           userId,
           status: 'pending',
           totalAmount,
           paymentMethod,
-          idempotencyKey,
+          ...(idempotencyKey ? { idempotencyKey } : {}),
           createdAt: now,
           updatedAt: now,
-          items: { create: lines },
-          statusHistory: {
-            create: [{ status: 'pending', changedAt: now, changedBy: 'system' }],
-          },
-        },
-        include: { items: true, statusHistory: { orderBy: { changedAt: 'asc' } } },
-      });
-
-      await tx.cartItem.deleteMany({ where: { userId } });
-      return created;
-    });
+          items: lines,
+          statusHistory: [{ status: 'pending', changedAt: now, changedBy: 'system' }],
+        });
+        await CartItem.deleteMany({ userId });
+        createdOrder = normalizeOrder(created.toObject());
+      } else {
+        throw err;
+      }
+    } finally {
+      session.endSession();
+    }
 
     setImmediate(() => {
-      simulatePaymentCompletion(order.id).catch((err) => {
+      simulatePaymentCompletion(createdOrder.id).catch((err) => {
         console.error('Payment simulation error:', err);
       });
     });
 
-    return sendSuccess(res, 201, { order: serializeOrder(order) });
+    return sendSuccess(res, 201, { order: serializeOrder(createdOrder) });
   } catch (error) {
     if (error instanceof AppError) {
       return sendError(res, error.statusCode, error.code, error.message);

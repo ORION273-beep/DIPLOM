@@ -1,6 +1,6 @@
 const express = require('express');
 const { z } = require('zod');
-const { prisma } = require('../prisma');
+const { CartItem, toPlain } = require('../db/models');
 const { sendError, sendSuccess } = require('../utils/errors');
 const { requireAuth } = require('../middleware/auth');
 
@@ -36,11 +36,8 @@ router.use(requireAuth);
 
 router.get('/', async (req, res) => {
   try {
-    const items = await prisma.cartItem.findMany({
-      where: { userId: req.user.id },
-      orderBy: { updatedAt: 'desc' },
-    });
-    return sendSuccess(res, 200, { items: items.map(serializeCartItem) });
+    const items = await CartItem.find({ userId: req.user.id }).sort({ updatedAt: -1 }).lean();
+    return sendSuccess(res, 200, { items: items.map((i) => serializeCartItem(toPlain(i))) });
   } catch (error) {
     console.error('GET /api/cart error:', error);
     return sendError(res, 500, 'SERVER', 'Ошибка при загрузке корзины');
@@ -56,34 +53,24 @@ router.post('/', async (req, res) => {
     const data = parsed.data;
     const productId = String(data.productId);
     const quantity = data.quantity ?? 1;
+    const payload = {
+      title: data.title,
+      price: data.price,
+      oldPrice: data.oldPrice ?? null,
+      image: data.image,
+      quantity,
+      gameSlug: data.gameSlug ?? null,
+      category: data.category ?? null,
+      platform: data.platform ?? null,
+    };
 
-    const item = await prisma.cartItem.upsert({
-      where: {
-        userId_productId: { userId: req.user.id, productId },
-      },
-      create: {
-        userId: req.user.id,
-        productId,
-        title: data.title,
-        price: data.price,
-        oldPrice: data.oldPrice ?? null,
-        image: data.image,
-        quantity,
-        gameSlug: data.gameSlug ?? null,
-        category: data.category ?? null,
-        platform: data.platform ?? null,
-      },
-      update: {
-        title: data.title,
-        price: data.price,
-        oldPrice: data.oldPrice ?? null,
-        image: data.image,
-        quantity,
-        gameSlug: data.gameSlug ?? null,
-        category: data.category ?? null,
-        platform: data.platform ?? null,
-      },
-    });
+    const item = toPlain(
+      await CartItem.findOneAndUpdate(
+        { userId: req.user.id, productId },
+        { $set: { userId: req.user.id, productId, ...payload } },
+        { upsert: true, new: true },
+      ).lean(),
+    );
     return sendSuccess(res, 201, { item: serializeCartItem(item) });
   } catch (error) {
     console.error('POST /api/cart error:', error);
@@ -106,13 +93,10 @@ router.post('/merge', async (req, res) => {
     for (const raw of parsed.data.items) {
       const productId = String(raw.productId);
       const quantity = raw.quantity ?? 1;
-      const existing = await prisma.cartItem.findUnique({
-        where: { userId_productId: { userId, productId } },
-      });
+      const existing = toPlain(await CartItem.findOne({ userId, productId }).lean());
       if (existing) {
-        await prisma.cartItem.update({
-          where: { id: existing.id },
-          data: {
+        await CartItem.findByIdAndUpdate(existing.id, {
+          $set: {
             quantity: existing.quantity + quantity,
             title: raw.title,
             price: raw.price,
@@ -121,28 +105,23 @@ router.post('/merge', async (req, res) => {
           },
         });
       } else {
-        await prisma.cartItem.create({
-          data: {
-            userId,
-            productId,
-            title: raw.title,
-            price: raw.price,
-            oldPrice: raw.oldPrice ?? null,
-            image: raw.image,
-            quantity,
-            gameSlug: raw.gameSlug ?? null,
-            category: raw.category ?? null,
-            platform: raw.platform ?? null,
-          },
+        await CartItem.create({
+          userId,
+          productId,
+          title: raw.title,
+          price: raw.price,
+          oldPrice: raw.oldPrice ?? null,
+          image: raw.image,
+          quantity,
+          gameSlug: raw.gameSlug ?? null,
+          category: raw.category ?? null,
+          platform: raw.platform ?? null,
         });
       }
     }
 
-    const items = await prisma.cartItem.findMany({
-      where: { userId },
-      orderBy: { updatedAt: 'desc' },
-    });
-    return sendSuccess(res, 200, { items: items.map(serializeCartItem) });
+    const items = await CartItem.find({ userId }).sort({ updatedAt: -1 }).lean();
+    return sendSuccess(res, 200, { items: items.map((i) => serializeCartItem(toPlain(i))) });
   } catch (error) {
     console.error('POST /api/cart/merge error:', error);
     return sendError(res, 500, 'SERVER', 'Ошибка при синхронизации корзины');
@@ -156,16 +135,13 @@ router.patch('/:productId', async (req, res) => {
     if (!Number.isInteger(quantity) || quantity < 1) {
       return sendError(res, 400, 'VALIDATION', 'Некорректное количество');
     }
-    const existing = await prisma.cartItem.findUnique({
-      where: { userId_productId: { userId: req.user.id, productId } },
-    });
+    const existing = toPlain(await CartItem.findOne({ userId: req.user.id, productId }).lean());
     if (!existing) {
       return sendError(res, 404, 'NOT_FOUND', 'Товар не найден в корзине');
     }
-    const item = await prisma.cartItem.update({
-      where: { id: existing.id },
-      data: { quantity },
-    });
+    const item = toPlain(
+      await CartItem.findByIdAndUpdate(existing.id, { $set: { quantity } }, { new: true }).lean(),
+    );
     return sendSuccess(res, 200, { item: serializeCartItem(item) });
   } catch (error) {
     console.error('PATCH /api/cart/:productId error:', error);
@@ -176,9 +152,7 @@ router.patch('/:productId', async (req, res) => {
 router.delete('/:productId', async (req, res) => {
   try {
     const productId = String(req.params.productId);
-    await prisma.cartItem.deleteMany({
-      where: { userId: req.user.id, productId },
-    });
+    await CartItem.deleteMany({ userId: req.user.id, productId });
     return sendSuccess(res, 200, { removed: true });
   } catch (error) {
     console.error('DELETE /api/cart/:productId error:', error);
@@ -188,7 +162,7 @@ router.delete('/:productId', async (req, res) => {
 
 router.delete('/', async (req, res) => {
   try {
-    await prisma.cartItem.deleteMany({ where: { userId: req.user.id } });
+    await CartItem.deleteMany({ userId: req.user.id });
     return sendSuccess(res, 200, { cleared: true });
   } catch (error) {
     console.error('DELETE /api/cart error:', error);

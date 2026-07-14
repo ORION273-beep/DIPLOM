@@ -2,13 +2,13 @@ openapi: 3.0.3
 info:
   title: OneSec API
   version: 1.0.0
-  description: REST API магазина цифровых товаров OneSec (Express + Prisma)
+  description: REST API магазина цифровых товаров OneSec (Express + Mongoose + MongoDB)
 
 servers:
   - url: http://localhost:4000/api
     description: Backend (dev)
-  - url: http://localhost:3000/api
-    description: Через Next.js rewrite
+  - url: http://localhost:5173/api
+    description: Через Vite dev-proxy
 
 components:
   securitySchemes:

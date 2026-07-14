@@ -1,5 +1,5 @@
 const express = require('express');
-const { prisma } = require('../prisma');
+const { Game, toPlain } = require('../db/models');
 const { sendError, sendSuccess } = require('../utils/errors');
 const { serializeGame } = require('../utils/serializers');
 
@@ -7,8 +7,8 @@ const router = express.Router();
 
 router.get('/', async (_req, res) => {
   try {
-    const games = await prisma.game.findMany({ orderBy: { id: 'asc' } });
-    return sendSuccess(res, 200, { games: games.map(serializeGame) });
+    const games = await Game.find().sort({ _id: 1 }).lean();
+    return sendSuccess(res, 200, { games: games.map((g) => serializeGame(toPlain(g))) });
   } catch (error) {
     console.error('GET /api/games error:', error);
     return sendError(res, 500, 'SERVER', 'Не удалось загрузить игры');
@@ -17,7 +17,7 @@ router.get('/', async (_req, res) => {
 
 router.get('/:slug', async (req, res) => {
   try {
-    const game = await prisma.game.findUnique({ where: { slug: req.params.slug } });
+    const game = toPlain(await Game.findOne({ slug: req.params.slug }).lean());
     if (!game) {
       return sendError(res, 404, 'NOT_FOUND', 'Игра не найдена');
     }

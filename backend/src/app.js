@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const yaml = require('yaml');
 const swaggerUi = require('swagger-ui-express');
-const { prisma } = require('./prisma');
+const { isMongoReady } = require('./db/ensureMongo');
 const { sendError } = require('./utils/errors');
 
 const authRoutes = require('./routes/auth');
@@ -78,12 +78,10 @@ function createApp() {
   }
 
   app.get('/api/health', async (_req, res) => {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
+    if (isMongoReady()) {
       return res.json({ ok: true, status: 'ok', db: 'connected' });
-    } catch {
-      return res.status(503).json({ ok: false, status: 'degraded', db: 'disconnected' });
     }
+    return res.status(503).json({ ok: false, status: 'degraded', db: 'disconnected' });
   });
 
   try {

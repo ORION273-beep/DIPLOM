@@ -1,6 +1,6 @@
 const express = require('express');
 const { z } = require('zod');
-const { prisma } = require('../prisma');
+const { Favorite, toPlain } = require('../db/models');
 const { sendError, sendSuccess } = require('../utils/errors');
 const { requireAuth } = require('../middleware/auth');
 
@@ -28,11 +28,10 @@ router.use(requireAuth);
 
 router.get('/', async (req, res) => {
   try {
-    const favorites = await prisma.favorite.findMany({
-      where: { userId: req.user.id },
-      orderBy: { createdAt: 'desc' },
+    const favorites = await Favorite.find({ userId: req.user.id }).sort({ createdAt: -1 }).lean();
+    return sendSuccess(res, 200, {
+      favorites: favorites.map((f) => serializeFavorite(toPlain(f))),
     });
-    return sendSuccess(res, 200, { favorites: favorites.map(serializeFavorite) });
   } catch (error) {
     console.error('GET /api/favorites error:', error);
     return sendError(res, 500, 'SERVER', 'Ошибка при загрузке избранного');
@@ -49,20 +48,22 @@ router.post('/', async (req, res) => {
     const { productId, title, price, oldPrice, image } = parsed.data;
     const productIdStr = String(productId);
 
-    const favorite = await prisma.favorite.upsert({
-      where: {
-        userId_productId: { userId: req.user.id, productId: productIdStr },
-      },
-      create: {
-        userId: req.user.id,
-        productId: productIdStr,
-        title,
-        price,
-        oldPrice: oldPrice ?? null,
-        image,
-      },
-      update: { title, price, oldPrice: oldPrice ?? null, image },
-    });
+    const favorite = toPlain(
+      await Favorite.findOneAndUpdate(
+        { userId: req.user.id, productId: productIdStr },
+        {
+          $set: {
+            userId: req.user.id,
+            productId: productIdStr,
+            title,
+            price,
+            oldPrice: oldPrice ?? null,
+            image,
+          },
+        },
+        { upsert: true, new: true },
+      ).lean(),
+    );
 
     return sendSuccess(res, 201, { favorite: serializeFavorite(favorite) });
   } catch (error) {
@@ -74,9 +75,7 @@ router.post('/', async (req, res) => {
 router.delete('/:productId', async (req, res) => {
   try {
     const productId = String(req.params.productId);
-    await prisma.favorite.deleteMany({
-      where: { userId: req.user.id, productId },
-    });
+    await Favorite.deleteMany({ userId: req.user.id, productId });
     return sendSuccess(res, 200, { removed: true });
   } catch (error) {
     console.error('DELETE /api/favorites/:productId error:', error);
