@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-'use client';
 
 import { Heart, ShoppingCart01 } from '@untitledui/icons';
 import { Badge } from '@/components/base/badges/badges';

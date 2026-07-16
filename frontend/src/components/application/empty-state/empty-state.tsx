@@ -1,5 +1,3 @@
-"use client";
-
 import type { ComponentProps, ComponentPropsWithRef, ReactNode } from "react";
 import { Children, createContext, isValidElement, useContext } from "react";
 import { FileIcon } from "@untitledui/file-icons";

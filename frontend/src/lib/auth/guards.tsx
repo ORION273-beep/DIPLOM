@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect } from 'react';
 import { useRouter } from '@/lib/navigation';
 import { useAuthStore } from '@/lib/auth/store';

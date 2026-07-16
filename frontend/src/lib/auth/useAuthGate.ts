@@ -1,5 +1,3 @@
-'use client';
-
 import { useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/lib/auth/store';

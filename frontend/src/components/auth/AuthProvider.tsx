@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect } from 'react';
 import { useAuthStore } from '@/lib/auth/store';
 import { syncFavoritesFromServer } from '@/lib/favoritesSync';

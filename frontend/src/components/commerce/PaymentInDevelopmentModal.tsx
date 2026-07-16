@@ -1,5 +1,3 @@
-'use client';
-
 import { CheckCircle, CreditCard02, Loading01, ShieldTick, Zap } from '@untitledui/icons';
 import { Badge } from '@/components/base/badges/badges';
 import { Button } from '@/components/base/buttons/button';

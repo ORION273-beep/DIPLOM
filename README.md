@@ -21,8 +21,8 @@ npm install --prefix frontend
 # backend/.env: MONGODB_URI=mongodb://127.0.0.1:27017/onesec
 # JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
 
-# Сид (при подключении к Mongo)
-npm run db:seed --prefix backend
+# Полный reseed данных
+npm run db:seed:wipe
 
 # Backend + Vite SPA
 npm run dev:vite
@@ -32,7 +32,7 @@ npm run dev:vite
 - Backend API: [http://localhost:4000](http://localhost:4000)
 - Swagger UI: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
 
-Swagger в production (`NODE_ENV=production`) недоступен.
+Swagger доступен и в production, если `backend/openapi.yaml` присутствует в образе.
 
 ## Демо-аккаунты
 
@@ -49,7 +49,10 @@ Swagger в production (`NODE_ENV=production`) недоступен.
 | `npm run backend:dev` | Express API |
 | `npm run dev:vite` | Backend + Vite concurrently |
 | `npm run frontend:build` | Production build SPA |
+| `npm run frontend:preview` | Локальный preview собранной SPA |
+| `npm run preview` | Алиас к `frontend:preview` |
 | `npm run test` | Backend API tests |
+| `npm run db:seed:wipe` | Очистить Mongo и заново выполнить seed |
 
 ## Docker
 

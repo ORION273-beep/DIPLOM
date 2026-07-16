@@ -1,5 +1,3 @@
-'use client';
-
 import { useSearchParams } from '@/lib/navigation';
 import { Button } from '@/components/base/buttons/button';
 import { SectionCard, SectionCardContent, SectionCardDescription, SectionCardHeader, SectionCardTitle } from '@/components/marketing/SectionCard';

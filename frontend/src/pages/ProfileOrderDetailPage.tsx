@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useState } from 'react';
 import { useParams } from '@/lib/navigation';
 import { toast } from 'sonner';

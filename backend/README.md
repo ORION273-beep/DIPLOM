@@ -30,13 +30,10 @@ npm install --prefix backend
 
 ```bash
 # из папки backend/
-npm run db:seed
-
-# или полный wipe + seed
-npm run db:reset
+npm run db:seed:wipe
 ```
 
-Сид заполняет коллекции из **`data/db.json`** (`src/db/seed.js`). Пароли пользователей хешируются bcrypt при сиде.
+Скрипт `db:seed:wipe` очищает коллекции и заново заполняет их из **`data/db.json`** (`src/db/seed.js`). Пароли пользователей хешируются bcrypt при сиде.
 
 При пустой БД сервер автоматически сидит данные на старте.
 
@@ -50,7 +47,7 @@ npm run dev
 
 ## OpenAPI
 
-Спецификация REST-контракта: [`openapi.yaml`](openapi.yaml). Интерактивный UI: **`http://localhost:4000/api/docs`** (Swagger UI, не в production).
+Спецификация REST-контракта: [`openapi.yaml`](openapi.yaml). Интерактивный UI: **`http://localhost:4000/api/docs`** (Swagger UI доступен и в production, пока `openapi.yaml` включён в образ).
 
 ## API (через Vite в браузере)
 

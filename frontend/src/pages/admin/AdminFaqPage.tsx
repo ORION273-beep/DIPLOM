@@ -1,5 +1,3 @@
-'use client';
-
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Plus, Edit01, Trash01 } from '@untitledui/icons';

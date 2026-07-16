@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from '@/lib/navigation';

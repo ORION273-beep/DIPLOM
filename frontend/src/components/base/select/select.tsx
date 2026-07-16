@@ -1,5 +1,3 @@
-"use client";
-
 import type { FC, ReactNode, Ref, RefAttributes } from "react";
 import { isValidElement } from "react";
 import { ChevronDown } from "@untitledui/icons";

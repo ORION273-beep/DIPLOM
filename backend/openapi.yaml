@@ -3,6 +3,7 @@ info:
   title: OneSec API
   version: 1.0.0
   description: REST API магазина цифровых товаров OneSec (Express + Mongoose + MongoDB)
+  x-spec-status: partial
 
 servers:
   - url: http://localhost:4000/api
@@ -135,6 +136,48 @@ paths:
         '200':
           description: Всегда успех
 
+  /auth/logout:
+    post:
+      summary: Выход и очистка refresh cookie
+      responses:
+        '200':
+          description: logout ok
+
+  /auth/reset-password:
+    post:
+      summary: Сброс пароля по токену
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 6 }
+      responses:
+        '200':
+          description: Пароль обновлён
+
+  /auth/password:
+    patch:
+      summary: Смена пароля текущего пользователя
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 6 }
+      responses:
+        '200':
+          description: Пароль обновлён
+
   /products:
     get:
       summary: Список товаров с фильтрами и пагинацией
@@ -192,6 +235,20 @@ paths:
         '200':
           description: games
 
+  /games/{slug}:
+    get:
+      summary: Игра по slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: game
+        '404':
+          description: Не найдена
+
   /orders:
     get:
       summary: Заказы текущего пользователя
@@ -227,6 +284,73 @@ paths:
       responses:
         '201':
           description: order
+
+  /orders/{id}:
+    get:
+      summary: Детали заказа текущего пользователя
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: order
+        '404':
+          description: Не найден
+
+  /cart:
+    get:
+      summary: Корзина текущего пользователя
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: items
+    post:
+      summary: Добавить или заменить товар в корзине
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: item
+    delete:
+      summary: Очистить корзину
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: cleared
+
+  /cart/merge:
+    post:
+      summary: Слить локальную корзину с серверной
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: items
+
+  /cart/{productId}:
+    patch:
+      summary: Обновить количество товара в корзине
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: item
+    delete:
+      summary: Удалить товар из корзины
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: removed
 
   /favorites:
     get:
@@ -324,6 +448,12 @@ paths:
       responses:
         '200':
           description: reviews
+    post:
+      summary: Оставить отзыв
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: review
 
   /faq:
     get:
@@ -331,3 +461,147 @@ paths:
       responses:
         '200':
           description: items
+
+  /payments/webhook:
+    post:
+      summary: Webhook оплаты
+      responses:
+        '200':
+          description: payment processed
+
+  /admin/stats:
+    get:
+      summary: Сводная статистика (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: stats
+
+  /admin/games:
+    get:
+      summary: Игры (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: games
+    post:
+      summary: Создать игру
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: game
+
+  /admin/games/{id}:
+    patch:
+      summary: Обновить игру
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: game
+    delete:
+      summary: Удалить игру
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: removed
+
+  /admin/faq:
+    get:
+      summary: FAQ (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: items
+    post:
+      summary: Создать FAQ item
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: item
+
+  /admin/faq/{id}:
+    patch:
+      summary: Обновить FAQ item
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: item
+    delete:
+      summary: Удалить FAQ item
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: removed
+
+  /admin/reviews:
+    get:
+      summary: Отзывы (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: reviews
+
+  /admin/reviews/{id}:
+    patch:
+      summary: Обновить/опубликовать отзыв
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: review
+    delete:
+      summary: Удалить отзыв
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: removed
+
+  /admin/users:
+    get:
+      summary: Пользователи (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: users
+
+  /admin/users/{id}:
+    patch:
+      summary: Обновить пользователя
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: user

@@ -203,8 +203,9 @@ async function runSeed({ wipe = true } = {}) {
 
 async function main() {
   const { ensureMongoConnection, shutdownMongo } = require('./ensureMongo');
+  const wipe = process.argv.includes('--wipe');
   await ensureMongoConnection();
-  await runSeed({ wipe: true });
+  await runSeed({ wipe });
   await shutdownMongo();
 }
 

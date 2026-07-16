@@ -1,5 +1,3 @@
-'use client';
-
 import { SectionCard, SectionCardContent } from '@/components/marketing/SectionCard';
 import { Button } from '@/components/base/buttons/button';
 import { OneSecEmptyState } from '@/components/application/empty-state/OneSecEmptyState';

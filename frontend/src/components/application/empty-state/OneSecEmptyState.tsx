@@ -1,5 +1,3 @@
-'use client';
-
 import type { FC } from 'react';
 import { EmptyState } from '@/components/application/empty-state/empty-state';
 import { Button } from '@/components/base/buttons/button';

@@ -1,5 +1,3 @@
-"use client";
-
 import type { HTMLAttributes } from "react";
 import { UploadCloud02 } from "@untitledui/icons";
 import { cx } from "@/utils/cx";

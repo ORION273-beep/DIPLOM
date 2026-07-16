@@ -1,5 +1,3 @@
-"use client";
-
 import { type ReactNode, type Ref, createContext, useContext } from "react";
 import {
     Radio as AriaRadio,

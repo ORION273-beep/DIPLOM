@@ -1,5 +1,3 @@
-'use client';
-
 import { useMemo, useState } from 'react';
 import { Minus, Plus, ShoppingCart01, Trash01 } from '@untitledui/icons';
 import { Button } from '@/components/base/buttons/button';

@@ -1,5 +1,3 @@
-'use client';
-
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { RouteProvider } from '@/providers/route-provider';

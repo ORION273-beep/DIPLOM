@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-'use client';
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from '@/lib/navigation';

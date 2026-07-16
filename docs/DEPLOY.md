@@ -39,9 +39,11 @@ cp .env.example .env
 ```bash
 docker compose up -d --build
 curl http://localhost/api/health
+curl http://localhost/api/docs
 ```
 
 При пустой БД backend автоматически выполнит seed из `backend/data/db.json`.
+Swagger UI доступен по `/api/docs`, если `backend/openapi.yaml` попал в образ.
 
 ### Демо-аккаунты
 

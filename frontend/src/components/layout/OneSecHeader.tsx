@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, type FormEvent } from 'react';
 import { useRouter } from '@/lib/navigation';
 import { Heart, LogIn04, SearchLg, ShoppingCart01, User01 } from '@untitledui/icons';

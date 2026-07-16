@@ -1,5 +1,3 @@
-'use client';
-
 import { Heart } from '@untitledui/icons';
 import { Button } from '@/components/base/buttons/button';
 import { OneSecEmptyState } from '@/components/application/empty-state/OneSecEmptyState';

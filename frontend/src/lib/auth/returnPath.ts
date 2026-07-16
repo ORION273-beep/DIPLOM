@@ -1,5 +1,3 @@
-'use client';
-
 import { usePathname, useSearchParams } from '@/lib/navigation';
 
 /** Current pathname + query string for post-login return. */

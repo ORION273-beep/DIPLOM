@@ -1,8 +1,6 @@
-'use client';
-
 import { AlertCircle, CheckCircle, InfoCircle, Loading01 } from '@untitledui/icons';
-import { useTheme } from 'next-themes';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
+import { useTheme } from '@/providers/theme-provider';
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = 'dark' } = useTheme();
