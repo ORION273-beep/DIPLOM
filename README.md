@@ -18,14 +18,14 @@ npm install
 npm install --prefix backend
 npm install --prefix frontend
 
-# backend/.env: MONGODB_URI=mongodb://127.0.0.1:27017/onesec
-# JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
+# backend/.env: MONGODB_URI, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
+# FRONTEND_URL=http://localhost:5173
 
 # Полный reseed данных
 npm run db:seed:wipe
 
 # Backend + Vite SPA
-npm run dev:vite
+npm run dev
 ```
 
 - Frontend (Vite): [http://localhost:5173](http://localhost:5173)
@@ -45,12 +45,11 @@ Swagger доступен и в production, если `backend/openapi.yaml` пр�
 
 | Команда | Описание |
 |---------|----------|
-| `npm run frontend:dev` | Vite SPA |
-| `npm run backend:dev` | Express API |
-| `npm run dev:vite` | Backend + Vite concurrently |
-| `npm run frontend:build` | Production build SPA |
-| `npm run frontend:preview` | Локальный preview собранной SPA |
-| `npm run preview` | Алиас к `frontend:preview` |
+| `npm run dev` | Backend + Vite concurrently |
+| `npm run frontend:dev` | Только Vite SPA |
+| `npm run backend:dev` | Только Express API |
+| `npm run build` | Production build SPA |
+| `npm run frontend:preview` | Preview собранной SPA |
 | `npm run test` | Backend API tests |
 | `npm run db:seed:wipe` | Очистить Mongo и заново выполнить seed |
 

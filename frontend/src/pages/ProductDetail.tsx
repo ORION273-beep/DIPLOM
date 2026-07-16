@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useRouter } from '@/lib/navigation';
 import { ArrowLeft, Heart, ShoppingCart01 } from '@untitledui/icons';
-import { cn } from '@/lib/cn';
+import { cx } from '@/utils/cx';
 import {
   Dialog,
   DialogTrigger,
@@ -116,12 +116,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
         <div className="relative overflow-hidden rounded-2xl border border-secondary">
-          <div className={cn('relative aspect-square', !isPubg && !isLocalArt && 'bg-secondary', isLocalArt && 'bg-black')}>
+          <div className={cx('relative aspect-square', !isPubg && !isLocalArt && 'bg-secondary', isLocalArt && 'bg-black')}>
             {isPubg && <PubgUcBackdrop className="rounded-2xl" />}
             <img
               src={product.image || '/placeholder.svg'}
               alt={product.title}
-              className={cn(
+              className={cx(
                 isPubg
                   ? 'z-10 object-contain p-4 scale-[1.12] drop-shadow-[0_16px_40px_rgba(0,0,0,0.4)]'
                   : isLocalArt
@@ -250,7 +250,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
             <Button
               color="secondary"
               size="md"
-              className={cn(
+              className={cx(
                 'mt-3 w-full',
                 isFavorite && 'border-pink-500/50 bg-pink-500/10 text-pink-300'
               )}

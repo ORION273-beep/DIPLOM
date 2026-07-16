@@ -11,10 +11,8 @@ export type PopularGameCardGame = {
 
 export function PopularGameCard({
   game,
-  priority = false,
 }: {
   game: PopularGameCardGame;
-  priority?: boolean;
 }) {
   const genreLine = game.genres?.slice(0, 2).join(' · ');
 

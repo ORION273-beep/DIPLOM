@@ -192,7 +192,7 @@ router.post('/forgot-password', async (req, res) => {
       const token = randomUUID();
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await PasswordResetToken.create({ userId: user.id, token, expiresAt });
-      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       const resetUrl = `${baseUrl}/reset-password?token=${token}`;
       await sendPasswordResetEmail({ email, resetUrl });
     }

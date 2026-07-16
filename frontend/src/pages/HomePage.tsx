@@ -126,7 +126,7 @@ export default function HomePage() {
             <>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
                 {popularGames.map((game, index) => (
-                  <PopularGameCard key={game.id} game={game} priority={index < 3} />
+                  <PopularGameCard key={game.id} game={game} />
                 ))}
               </div>
               <div className="mt-8 flex justify-center md:mt-10">

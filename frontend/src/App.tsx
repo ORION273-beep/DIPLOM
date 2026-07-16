@@ -1,6 +1,6 @@
 import { Suspense, lazy, type ComponentType, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { ClientProvider } from '@/components/layout/ClientProvider';
+import { AppProviders } from '@/components/layout/AppProviders';
 import { OneSecHeader } from '@/components/layout/OneSecHeader';
 import { Footer } from '@/components/layout/Footer';
 import { PageLoader } from '@/components/ui/PageLoader';
@@ -109,9 +109,9 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <ClientProvider>
+      <AppProviders>
         <AppRoutes />
-      </ClientProvider>
+      </AppProviders>
     </BrowserRouter>
   );
 }

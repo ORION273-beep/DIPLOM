@@ -62,5 +62,5 @@ Swagger UI доступен по `/api/docs`, если `backend/openapi.yaml` п
 npm run backend:dev   # Express + Mongo (или memory fallback)
 npm run frontend:dev  # Vite :5173, proxy /api → :4000
 # или
-npm run dev:vite
+npm run dev
 ```

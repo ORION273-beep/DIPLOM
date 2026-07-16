@@ -34,7 +34,7 @@ flowchart LR
 
 ```bash
 # backend (:4000) + Vite (:5173)
-npm run dev:vite
+npm run dev
 
 # или раздельно
 npm run backend:dev
